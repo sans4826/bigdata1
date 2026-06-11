@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <title>방치형 스마트 공장 타이쿤</title>
 
-<!-- ============================================================
-  🔧 FIREBASE CONFIG — 아래 값을 본인의 Firebase 프로젝트 값으로 교체하세요
-  Firebase Console → 프로젝트 설정 → 앱 등록 → SDK 설정
-============================================================ -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getAuth, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import {
+    getAuth, signOut,
+    onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getFirestore, doc, setDoc, getDoc }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   // ⚠️ 본인 Firebase 프로젝트 값 (여기는 GitHub에 공개되어도 안전합니다!)
   const firebaseConfig = {
@@ -37,1095 +37,488 @@
 </script>
 
 <style>
-/* ══════════════════════════════════════
-   기본 변수 & 리셋
-══════════════════════════════════════ */
-:root{
-  --bg:#1e1e24;
-  --bg2:#16161c;
-  --panel:#2a2a38;
-  --border:#3a3a52;
-  --네온파랑:#00c3ff;
-  --네온초록:#39ff14;
-  --네온노랑:#ffe600;
-  --네온빨강:#ff4444;
-  --네온보라:#bf5fff;
-  --글자:#e0e0f0;
-  --글자흐림:#888;
-  --벨트높이:120px;
-  --폰트:'Malgun Gothic','맑은 고딕','Apple SD Gothic Neo',sans-serif;
-}
-*{box-sizing:border-box;margin:0;padding:0;user-select:none;-webkit-user-select:none;}
-html,body{height:100%;background:var(--bg);color:var(--글자);font-family:var(--폰트);overflow-x:hidden;}
-::-webkit-scrollbar{width:6px;}
-::-webkit-scrollbar-track{background:var(--bg2);}
-::-webkit-scrollbar-thumb{background:var(--네온파랑);border-radius:3px;}
-
-/* ══════════════════════════════════════
-   시작 화면 오버레이
-══════════════════════════════════════ */
-#overlay{
-  position:fixed;inset:0;z-index:1000;
-  background:rgba(16,16,24,.97);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;
-  padding:20px;
-}
-#overlay h1{
-  font-size:clamp(1.3rem,5vw,2.6rem);
-  color:var(--네온파랑);
-  text-shadow:0 0 20px var(--네온파랑),0 0 40px rgba(0,195,255,.4);
-  letter-spacing:2px;text-align:center;
-  animation:깜빡임 3s infinite;line-height:1.3;
-}
-#overlay .부제{color:var(--글자흐림);font-size:.82rem;letter-spacing:2px;}
-.스캔바{
-  width:min(380px,90vw);height:3px;
-  background:linear-gradient(90deg,transparent,var(--네온파랑),transparent);
-  animation:스캔 2s linear infinite;
-}
-@keyframes 스캔{0%{background-position:-400px 0}100%{background-position:400px 0}}
-@keyframes 깜빡임{0%,95%,100%{opacity:1}96%,98%{opacity:.55}}
-
-/* ── 로그인 박스 ── */
-#로그인박스{
-  width:min(380px,92vw);
-  background:var(--panel);
-  border:1px solid var(--border);
-  border-radius:12px;
-  overflow:hidden;
-}
-/* 탭 */
-.탭행{display:flex;border-bottom:1px solid var(--border);}
-.탭버튼{
-  flex:1;padding:11px 0;background:none;border:none;
-  font-family:var(--폰트);font-size:.82rem;font-weight:700;
-  color:var(--글자흐림);cursor:pointer;letter-spacing:1px;
-  transition:all .2s;border-bottom:2px solid transparent;
-}
-.탭버튼.활성{color:var(--네온파랑);border-bottom-color:var(--네온파랑);background:rgba(0,195,255,.06);}
-/* 탭 패널 */
-.탭패널{display:none;padding:20px;}
-.탭패널.활성{display:flex;flex-direction:column;gap:10px;}
-/* 인풋 */
-.입력라벨{font-size:.68rem;color:var(--글자흐림);letter-spacing:1px;margin-bottom:2px;}
-.입력필드{
-  width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;
-  padding:10px 12px;color:var(--글자);font-family:var(--폰트);font-size:.88rem;
-  outline:none;transition:border-color .2s;
-  /* 텍스트 입력 가능하게 */
-  user-select:text;-webkit-user-select:text;
-}
-.입력필드:focus{border-color:var(--네온파랑);box-shadow:0 0 8px rgba(0,195,255,.2);}
-/* 로그인 버튼들 */
-.버튼행{display:flex;gap:8px;margin-top:4px;}
-.로그인버튼{
-  flex:1;padding:10px;border:none;border-radius:6px;
-  font-family:var(--폰트);font-size:.85rem;font-weight:700;
-  cursor:pointer;transition:all .2s;letter-spacing:1px;
-}
-.버튼-파랑-채움{background:var(--네온파랑);color:#000;}
-.버튼-파랑-채움:hover{box-shadow:0 0 14px var(--네온파랑);transform:translateY(-1px);}
-.버튼-외곽-초록{background:transparent;color:var(--네온초록);border:1.5px solid var(--네온초록);}
-.버튼-외곽-초록:hover{box-shadow:0 0 12px var(--네온초록);transform:translateY(-1px);}
-/* 구분선 */
-.구분선{display:flex;align-items:center;gap:8px;margin:2px 0;}
-.구분선::before,.구분선::after{content:'';flex:1;height:1px;background:var(--border);}
-.구분선 span{font-size:.68rem;color:var(--글자흐림);}
-/* 구글 버튼 */
-.구글버튼{
-  width:100%;padding:10px;border-radius:6px;border:1.5px solid var(--border);
-  background:var(--bg2);color:var(--글자);
-  font-family:var(--폰트);font-size:.85rem;font-weight:700;
-  cursor:pointer;transition:all .2s;letter-spacing:1px;display:flex;align-items:center;justify-content:center;gap:8px;
-}
-.구글버튼:hover{border-color:var(--네온파랑);box-shadow:0 0 10px rgba(0,195,255,.2);}
-/* 게스트 */
-.게스트버튼{
-  width:100%;padding:8px;background:none;border:none;
-  font-family:var(--폰트);font-size:.75rem;color:var(--글자흐림);
-  cursor:pointer;letter-spacing:1px;margin-top:2px;
-  transition:color .2s;
-}
-.게스트버튼:hover{color:var(--글자);}
-/* 오류 메시지 */
-.오류문구{font-size:.72rem;color:var(--네온빨강);min-height:18px;letter-spacing:.5px;}
-
-/* ══════════════════════════════════════
-   상단 HUD
-══════════════════════════════════════ */
-#hud{
-  display:flex;align-items:center;flex-wrap:wrap;gap:12px;
-  padding:10px 16px;
-  background:var(--bg2);border-bottom:1px solid var(--border);
-  position:sticky;top:0;z-index:100;
-}
-.hud블록{display:flex;flex-direction:column;align-items:flex-start;}
-.hud라벨{font-size:.6rem;color:var(--글자흐림);letter-spacing:1px;}
-.hud값{font-size:1.05rem;font-weight:700;}
-.hud값.자금{color:var(--네온노랑);}
-.hud값.스테이지{color:var(--네온파랑);}
-.hud값.초당수익{color:var(--네온초록);}
-.hud구분{flex:1;}
-#유저정보{font-size:.7rem;color:var(--글자흐림);text-align:right;line-height:1.6;max-width:140px;overflow:hidden;text-overflow:ellipsis;}
-#유저정보 span{color:var(--네온파랑);}
-.버튼-저장{
-  background:var(--네온초록);color:#000;padding:8px 14px;font-size:.8rem;
-  border-radius:6px;border:none;cursor:pointer;font-weight:700;font-family:var(--폰트);
-  transition:all .2s;white-space:nowrap;
-}
-.버튼-저장:hover{box-shadow:0 0 14px var(--네온초록);}
-.버튼-빨강{
-  background:transparent;color:var(--네온빨강);border:1.5px solid var(--네온빨강);
-  padding:7px 12px;font-size:.8rem;border-radius:6px;cursor:pointer;
-  font-family:var(--폰트);font-weight:700;transition:all .2s;
-}
-.버튼-빨강:hover{box-shadow:0 0 10px var(--네온빨강);}
-
-/* ══════════════════════════════════════
-   공장 컨베이어 벨트
-══════════════════════════════════════ */
-#공장{
-  position:relative;width:100%;height:var(--벨트높이);overflow:hidden;
-  background:linear-gradient(180deg,#1a1a26 0%,#222232 40%,#1a1a26 100%);
-  border-bottom:2px solid var(--border);cursor:crosshair;
-}
-.벨트트랙{
-  position:absolute;left:0;right:0;bottom:12px;height:22px;
-  background:repeating-linear-gradient(90deg,#2c2c40 0,#2c2c40 30px,#333346 30px,#333346 60px);
-  border-top:2px solid #444;border-bottom:2px solid #222;
-  animation:벨트이동 1.2s linear infinite;
-}
-@keyframes 벨트이동{0%{background-position:0 0}100%{background-position:60px 0}}
-#공장::before,#공장::after{
-  content:'';position:absolute;top:0;bottom:0;width:48px;z-index:3;pointer-events:none;
-}
-#공장::before{left:0;background:linear-gradient(90deg,var(--bg2),transparent);}
-#공장::after{right:0;background:linear-gradient(-90deg,var(--bg2),transparent);}
-#모니터텍스트{
-  position:absolute;top:8px;left:56px;font-size:.57rem;color:rgba(0,195,255,.32);
-  letter-spacing:1px;pointer-events:none;line-height:1.9;
-}
-#로봇팔{
-  position:absolute;right:44px;top:0;bottom:0;width:52px;z-index:4;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-}
-#팔몸체{
-  width:14px;height:54px;
-  background:linear-gradient(180deg,#555,#333);
-  border:1px solid #666;border-radius:3px;position:relative;
-  transform-origin:50% 0;
-}
-#팔집게{
-  position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);
-  width:20px;height:14px;border:2px solid var(--네온파랑);border-radius:2px;
-}
-#팔잠금{
-  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  flex-direction:column;gap:4px;
-}
-#팔잠금 .잠금아이콘{font-size:1.4rem;}
-#팔잠금 .잠금글자{font-size:.5rem;color:var(--네온노랑);letter-spacing:1px;}
-#팔받침{width:36px;height:12px;background:#444;border-radius:2px;border:1px solid #666;}
-
-/* 박스 */
-.박스{
-  position:absolute;bottom:34px;z-index:5;
-  width:38px;height:38px;border-radius:4px;
-  display:flex;align-items:center;justify-content:center;font-size:1.2rem;
-  cursor:pointer;transition:transform .08s;
-  box-shadow:0 2px 10px rgba(0,0,0,.5);
-  border:1.5px solid rgba(255,255,255,.15);
-  animation:박스둥실 .6s ease-in-out infinite alternate;
-}
-.박스:hover{transform:scale(1.15);}
-.박스:active{transform:scale(.9);}
-@keyframes 박스둥실{0%{transform:translateY(0)}100%{transform:translateY(-3px)}}
-.박스-일반    {background:linear-gradient(135deg,#5a5a8a,#3a3a6a);}
-.박스-전자    {background:linear-gradient(135deg,#1e6fa0,#0d4a75);border-color:rgba(0,195,255,.4);}
-.박스-프리미엄{background:linear-gradient(135deg,#7a4a00,#3a2200);border-color:rgba(255,200,0,.5);}
-.박스-퀀텀   {background:linear-gradient(135deg,#5a1280,#2a0640);border-color:rgba(191,95,255,.6);}
-
-/* 플로팅 수익 텍스트 */
-.플로팅{
-  position:fixed;z-index:999;pointer-events:none;
-  font-size:.95rem;font-weight:700;color:var(--네온노랑);
-  text-shadow:0 0 8px var(--네온노랑);
-  animation:위로솟기 1.1s ease-out forwards;
-}
-@keyframes 위로솟기{
-  0%{opacity:1;transform:translateY(0) scale(1);}
-  70%{opacity:1;}
-  100%{opacity:0;transform:translateY(-70px) scale(1.3);}
-}
-
-/* ══════════════════════════════════════
-   메인 콘텐츠
-══════════════════════════════════════ */
-#메인{max-width:960px;margin:0 auto;padding:16px;}
-
-/* 스테이지 카드 */
-#스테이지카드{
-  background:var(--panel);border:1px solid var(--border);border-radius:8px;
-  padding:14px 18px;margin-bottom:16px;
-  display:flex;align-items:center;gap:16px;flex-wrap:wrap;
-}
-.스테이지제목{font-size:.95rem;color:var(--네온파랑);letter-spacing:1px;font-weight:700;}
-.스테이지설명{font-size:.78rem;color:var(--글자흐림);flex:1;line-height:1.5;}
-.스테이지진행{flex:1;min-width:160px;}
-.진행바배경{background:#333;border-radius:100px;height:8px;overflow:hidden;}
-.진행바채움{height:100%;background:linear-gradient(90deg,var(--네온파랑),var(--네온초록));border-radius:100px;transition:width .4s;}
-.진행라벨{font-size:.63rem;color:var(--글자흐림);margin-top:3px;text-align:right;}
-#다음스테이지버튼{
-  background:transparent;color:var(--네온파랑);border:2px solid var(--네온파랑);
-  padding:8px 16px;font-family:var(--폰트);font-size:.8rem;cursor:pointer;border-radius:6px;
-  transition:all .2s;font-weight:700;white-space:nowrap;
-}
-#다음스테이지버튼:hover:not(:disabled){box-shadow:0 0 14px var(--네온파랑);transform:scale(1.04);}
-#다음스테이지버튼:disabled{opacity:.35;cursor:not-allowed;}
-
-/* 상점 */
-#상점제목{
-  font-size:.72rem;color:var(--네온초록);letter-spacing:3px;margin-bottom:12px;
-  padding-bottom:6px;border-bottom:1px solid var(--border);font-weight:700;
-}
-#상점그리드{display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:12px;margin-bottom:20px;}
-.상점카드{
-  background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:14px;
-  display:flex;flex-direction:column;gap:8px;transition:border-color .2s;position:relative;overflow:hidden;
-}
-.상점카드::before{
-  content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;
-  background:radial-gradient(ellipse at center,rgba(0,195,255,.04) 0%,transparent 70%);
-  pointer-events:none;
-}
-.상점카드:hover{border-color:var(--네온파랑);}
-.상점카드.잠김{opacity:.5;}
-.카드아이콘{font-size:1.8rem;}
-.카드이름{font-size:.9rem;font-weight:700;}
-.카드설명{font-size:.72rem;color:var(--글자흐림);line-height:1.55;}
-.카드레벨{font-size:.63rem;color:var(--네온보라);letter-spacing:1px;}
-.카드비용{font-size:.88rem;color:var(--네온노랑);font-weight:700;}
-.카드구매버튼{
-  background:transparent;color:var(--네온초록);border:1.5px solid var(--네온초록);
-  padding:8px;font-family:var(--폰트);font-size:.8rem;cursor:pointer;border-radius:6px;
-  transition:all .2s;font-weight:700;margin-top:4px;
-}
-.카드구매버튼:hover:not(:disabled){background:rgba(57,255,20,.1);box-shadow:0 0 10px rgba(57,255,20,.4);}
-.카드구매버튼:disabled{opacity:.3;cursor:not-allowed;border-color:#555;color:#555;}
-.카드구매버튼.최고레벨{border-color:var(--네온파랑);color:var(--네온파랑);cursor:default;}
-.잠금뱃지{
-  position:absolute;top:8px;right:8px;background:rgba(255,230,0,.12);
-  color:var(--네온노랑);font-size:.58rem;padding:2px 7px;border-radius:100px;
-  border:1px solid rgba(255,230,0,.3);font-weight:700;
-}
-
-/* AI 비서 패널 */
-#ai패널{
-  background:var(--bg2);border:1px solid var(--border);border-radius:8px;
-  overflow:hidden;margin-bottom:24px;
-}
-#ai헤더{
-  display:flex;align-items:center;gap:10px;padding:12px 16px;
-  background:var(--panel);border-bottom:1px solid var(--border);
-}
-.ai점{
-  width:8px;height:8px;border-radius:50%;background:var(--네온초록);
-  box-shadow:0 0 8px var(--네온초록);animation:펄스 1.5s infinite;
-}
-@keyframes 펄스{0%,100%{opacity:1}50%{opacity:.4}}
-.ai제목{font-size:.8rem;color:var(--네온초록);letter-spacing:2px;font-weight:700;}
-.ai모델명{font-size:.62rem;color:var(--글자흐림);margin-left:auto;}
-#ai채팅창{
-  height:220px;overflow-y:auto;padding:14px;
-  display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth;
-}
-.채팅메시지{
-  max-width:88%;padding:10px 14px;border-radius:6px;
-  font-size:.8rem;line-height:1.6;word-break:break-word;
-  animation:메시지등장 .3s ease;
-}
-@keyframes 메시지등장{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-.메시지-유저{align-self:flex-end;background:rgba(0,195,255,.12);border:1px solid rgba(0,195,255,.3);color:var(--네온파랑);}
-.메시지-ai{align-self:flex-start;background:rgba(57,255,20,.07);border:1px solid rgba(57,255,20,.25);color:var(--네온초록);}
-.메시지-시스템{align-self:center;color:var(--글자흐림);font-size:.7rem;font-style:italic;}
-#ai입력행{
-  display:flex;gap:8px;padding:12px 14px;
-  border-top:1px solid var(--border);background:var(--panel);
-}
-#ai입력창{
-  flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;
-  padding:8px 12px;color:var(--글자);font-family:var(--폰트);font-size:.82rem;outline:none;
-  user-select:text;-webkit-user-select:text;
-}
-#ai입력창:focus{border-color:var(--네온초록);box-shadow:0 0 8px rgba(57,255,20,.2);}
-#ai전송버튼{
-  background:var(--네온초록);color:#000;border:none;padding:8px 16px;
-  font-family:var(--폰트);font-size:.82rem;font-weight:700;cursor:pointer;
-  border-radius:6px;transition:all .2s;white-space:nowrap;
-}
-#ai전송버튼:hover{box-shadow:0 0 12px var(--네온초록);}
-#ai전송버튼:disabled{opacity:.4;cursor:not-allowed;}
-
-/* 알림 토스트 */
-#알림{
-  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
-  background:var(--panel);border:1px solid var(--네온파랑);
-  padding:10px 22px;border-radius:8px;font-size:.82rem;color:var(--네온파랑);
-  z-index:900;transition:opacity .4s,transform .4s;
-  box-shadow:0 0 18px rgba(0,195,255,.3);
-  pointer-events:none;opacity:0;text-align:center;white-space:nowrap;
-}
-#알림.표시{opacity:1;transform:translateX(-50%) translateY(0);}
-
-/* 반응형 */
-@media(max-width:600px){
-  :root{--벨트높이:100px;}
-  #hud{padding:8px 10px;gap:8px;}
-  .hud값{font-size:.9rem;}
-  #메인{padding:10px;}
-  #상점그리드{grid-template-columns:1fr 1fr;}
-  .상점카드{padding:10px;}
-}
-@media(max-width:380px){
-  #상점그리드{grid-template-columns:1fr;}
-}
+  /* ------------------------------------------------------------
+     🎨 UI STYLES (기존 테마 스타일 유지)
+     ------------------------------------------------------------ */
+  :root {
+    --bg-dark: #121214;
+    --panel-bg: #1e1e24;
+    --panel-border: #2a2a32;
+    --accent-blue: #3b82f6;
+    --accent-green: #10b981;
+    --accent-amber: #f59e0b;
+    --text-main: #f3f4f6;
+    --text-muted: #9ca3af;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+  body {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+  header {
+    background-color: var(--panel-bg);
+    border-bottom: 1px solid var(--panel-border);
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  header h1 { font-size: 1.25rem; font-weight: 700; color: var(--accent-blue); display: flex; align-items: center; gap: 8px; }
+  
+  .유저정보구역 { display: flex; align-items: center; gap: 12px; }
+  .인증버튼 {
+    background: #2563eb; color: #fff; border: none; padding: 6px 12px;
+    border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 600;
+  }
+  .인증버튼.로그아웃 { background: #dc2626; }
+  
+  .메인컨테이너 { flex: 1; display: flex; overflow: hidden; }
+  .게임패널 { flex: 1; display: flex; flex-direction: column; border-right: 1px solid var(--panel-border); }
+  .HUD {
+    background: #18181c; padding: 15px 20px;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;
+    border-bottom: 1px solid var(--panel-border);
+  }
+  .HUD항목 { background: var(--panel-bg); padding: 10px 15px; border-radius: 6px; border: 1px solid var(--panel-border); }
+  .HUD라벨 { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; }
+  .HUD값 { font-size: 1.25rem; font-weight: 700; }
+  .HUD값.자금 { color: var(--accent-green); }
+  
+  .컨텐츠구역 { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+  .컨트롤카드 {
+    background: var(--panel-bg); border: 1px solid var(--panel-border);
+    border-radius: 8px; padding: 20px;
+  }
+  .카드제목 { font-size: 1rem; font-weight: 600; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+  
+  .업그레이드그리드 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+  .강화버튼 {
+    background: #27272a; border: 1px solid var(--panel-border); color: #fff;
+    padding: 15px; border-radius: 6px; text-align: left; cursor: pointer;
+    transition: all 0.2s; display: flex; flex-direction: column; gap: 4px;
+  }
+  .강화버튼:hover:not(:disabled) { border-color: var(--accent-blue); background: #2e2e35; }
+  .강화버튼:disabled { opacity: 0.5; cursor: not-allowed; }
+  .강화이름 { font-weight: 600; font-size: 0.95rem; }
+  .강화설명 { font-size: 0.8rem; color: var(--text-muted); }
+  .강화비용 { font-size: 0.9rem; color: var(--accent-amber); font-weight: 600; margin-top: 4px; }
+  
+  .생산라인구역 { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+  .라인트랙 { background: #141416; height: 12px; border-radius: 6px; overflow: hidden; position: relative; }
+  .라인게이지 { background: linear-gradient(90deg, #3b82f6, #10b981); height: 100%; width: 0%; transition: width 0.05s linear; }
+  
+  .AI비서패널 { width: 360px; background: #16161a; display: flex; flex-direction: column; }
+  .AI헤더 { padding: 15px 20px; border-bottom: 1px solid var(--panel-border); font-weight: 600; display: flex; align-items: center; gap: 8px; color: var(--accent-blue); }
+  .채팅창 { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+  .말풍선 { max-width: 85%; padding: 10px 14px; border-radius: 8px; font-size: 0.9rem; line-height: 1.4; word-break: break-all; }
+  .말풍선.유저 { background: var(--accent-blue); color: #fff; align-self: flex-end; border-bottom-right-radius: 2px; }
+  .말풍선.ai { background: var(--panel-bg); border: 1px solid var(--panel-border); color: var(--text-main); align-self: flex-start; border-bottom-left-radius: 2px; }
+  .말풍선.시스템 { background: #27272a; color: var(--text-muted); align-self: center; font-size: 0.8rem; border-radius: 4px; text-align: center; max-width: 100%; }
+  
+  .입력구역 { padding: 12px; border-top: 1px solid var(--panel-border); display: flex; gap: 8px; background: var(--panel-bg); }
+  .입력창 { flex: 1; background: #141416; border: 1px solid var(--panel-border); border-radius: 4px; padding: 8px 12px; color: #fff; font-size: 0.9rem; }
+  .입력창:focus { outline: none; border-color: var(--accent-blue); }
+  .전송버튼 { background: var(--accent-blue); color: #fff; border: none; padding: 0 16px; border-radius: 4px; cursor: pointer; font-weight: 600; }
+  .전송버튼:disabled { opacity: 0.5; }
+  
+  /* 모달 팝업 스타일 */
+  .모달배경 {
+    position: fixed; top:0; left:0; width:100%; height:100%;
+    background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 999;
+  }
+  .모달창 {
+    background: var(--panel-bg); border: 1px solid var(--panel-border);
+    padding: 30px; border-radius: 8px; width: 340px; display: flex; flex-direction: column; gap: 15px;
+  }
+  .모달창 h2 { font-size: 1.2rem; text-align: center; color: var(--accent-blue); }
+  .모달입력 { background: #141416; border: 1px solid var(--panel-border); padding: 10px; color:#fff; border-radius:4px; }
+  .모달버튼묶음 { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+  .숨김 { display: none !important; }
 </style>
 </head>
 <body>
 
-<!-- ══════════ 시작 화면 오버레이 ══════════ -->
-<div id="overlay">
-  <div class="스캔바"></div>
-  <h1>⚙ 방치형 스마트 공장<br>타이쿤</h1>
-  <p class="부제">사이버네틱 에디션 v2.0</p>
-
-  <div id="로그인박스">
-    <!-- 탭 -->
-    <div class="탭행">
-      <button class="탭버튼 활성" id="탭-이메일" onclick="탭전환('이메일')">📧 이메일 로그인</button>
-      <button class="탭버튼" id="탭-회원가입" onclick="탭전환('회원가입')">✏ 회원가입</button>
-    </div>
-
-    <!-- 이메일 로그인 패널 -->
-    <div class="탭패널 활성" id="패널-이메일">
-      <div>
-        <div class="입력라벨">이메일</div>
-        <input class="입력필드" id="로그인-이메일" type="email" placeholder="example@email.com" autocomplete="email"/>
+  <div id="인증모달" class="모달배경">
+    <div class="모달창">
+      <h2 id="모달제목">스마트 공장 로그인</h2>
+      <input type="email" id="인증-이메일" class="모달입력" placeholder="이메일 주소"/>
+      <input type="password" id="인증-비번" class="모달입력" placeholder="비밀번호"/>
+      <div class="모달버튼묶음">
+        <button id="이메일로그인버튼" class="인증버튼">로그인</button>
+        <button id="회원가입버튼" class="인증버튼" style="background:#4b5563;">신규 계정 가입</button>
       </div>
-      <div>
-        <div class="입력라벨">비밀번호</div>
-        <input class="입력필드" id="로그인-비번" type="password" placeholder="비밀번호 입력" autocomplete="current-password"/>
+    </div>
+  </div>
+
+  <header>
+    <h1>⚙️ FACTORY SYSTEM V2</h1>
+    <div class="유저정보구역">
+      <span id="유저라벨" style="font-size:0.85rem; color:var(--text-muted);">로그인이 필요합니다.</span>
+      <button id="상단로그아웃버튼" class="인증버튼 로그아웃 숨김">로그아웃</button>
+      <button id="서버저장버튼" class="인증버튼 숨김" style="background:var(--accent-green);">서버 저장</button>
+    </div>
+  </header>
+
+  <div class="메인컨테이너">
+    <div class="게임패널">
+      <div class="HUD">
+        <div class="HUD항목">
+          <div class="HUD라벨">Operating Capital</div>
+          <div id="HUD-자금" class="HUD값 자금">0 ₩</div>
+        </div>
+        <div class="HUD항목">
+          <div class="HUD라벨">Factory Stage</div>
+          <div id="HUD-스테이지" class="HUD값">1 단계</div>
+        </div>
+        <div class="HUD항목">
+          <div class="HUD라벨">Motor Level</div>
+          <div id="HUD-모터레벨" class="HUD값">Lv.1</div>
+        </div>
+        <div class="HUD항목">
+          <div class="HUD라벨">Line Level</div>
+          <div id="HUD-라인레벨" class="HUD값">Lv.1</div>
+        </div>
       </div>
-      <div class="오류문구" id="로그인오류"></div>
-      <button class="로그인버튼 버튼-파랑-채움" id="이메일로그인버튼">로그인</button>
-      <div class="구분선"><span>또는</span></div>
-      <button class="구글버튼" id="구글로그인버튼1">
-        <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#4285F4" d="M47.5 24.6c0-1.6-.1-3.1-.4-4.6H24v8.7h13.2c-.6 3-2.3 5.5-4.9 7.2v6h7.9c4.6-4.3 7.3-10.6 7.3-17.3z"/><path fill="#34A853" d="M24 48c6.6 0 12.2-2.2 16.3-5.9l-7.9-6c-2.2 1.5-5 2.3-8.4 2.3-6.5 0-12-4.4-13.9-10.3H2v6.2C6 42.5 14.4 48 24 48z"/><path fill="#FBBC05" d="M10.1 28.1c-.5-1.5-.8-3-.8-4.6s.3-3.2.8-4.6v-6.2H2A23.9 23.9 0 0 0 0 24c0 3.9.9 7.5 2.5 10.7l8-6.2-.4-.4z"/><path fill="#EA4335" d="M24 9.5c3.6 0 6.8 1.3 9.4 3.7l7-7C36.2 2.2 30.6 0 24 0 14.4 0 6 5.5 2.5 13.3l8 6.2C12 13.9 17.5 9.5 24 9.5z"/></svg>
-        Google 계정으로 로그인
-      </button>
-      <button class="게스트버튼" id="게스트버튼">게스트로 시작 (저장 불가)</button>
-    </div>
 
-    <!-- 회원가입 패널 -->
-    <div class="탭패널" id="패널-회원가입">
-      <div>
-        <div class="입력라벨">이메일</div>
-        <input class="입력필드" id="가입-이메일" type="email" placeholder="example@email.com" autocomplete="email"/>
+      <div class="컨텐츠구역">
+        <div class="컨트롤카드">
+          <div class="카드제목">
+            <span>자동 생산 공정 관리</span>
+            <span id="생산효율지표" style="font-size:0.85rem; color:var(--accent-green);">효율: +100/s</span>
+          </div>
+          <div class="생산라인구역">
+            <div class="라인트랙"><div id="라인게이지" class="라인게이지"></div></div>
+          </div>
+        </div>
+
+        <div class="컨트롤카드">
+          <div class="카드제목">생산 하드웨어 증설 및 고도화</div>
+          <div class="업그레이드그리드">
+            <button id="btn-모터" class="강화버튼">
+              <span class="강화이름">고속 서보 모터 업그레이드</span>
+              <span class="강화설명">생산 진행 속도가 상시 상승합니다.</span>
+              <span id="cost-모터" class="강화비용">1,000 ₩</span>
+            </button>
+            <button id="btn-라인" class="강화버튼">
+              <span class="강화이름">컨베이어 라인 확장</span>
+              <span class="강화설명">정기 생산 시 획득하는 자금이 증가합니다.</span>
+              <span id="cost-라인" class="강화비용">1,500 ₩</span>
+            </button>
+          </div>
+        </div>
+        
+        <div class="컨트롤카드" style="margin-top: auto;">
+          <div class="카드제목" style="margin-bottom:0; font-size:0.85rem; color:var(--text-muted);">
+            <span>* 서버 저장 기능은 로그인 후 활성화됩니다.</span>
+          </div>
+        </div>
       </div>
-      <div>
-        <div class="입력라벨">비밀번호 (6자 이상)</div>
-        <input class="입력필드" id="가입-비번" type="password" placeholder="비밀번호 입력" autocomplete="new-password"/>
+    </div>
+
+    <div class="AI비서패널">
+      <div class="AI헤더">🤖 스마트 AI 제어 센터</div>
+      <div id="채팅창" class="채팅창">
+        <div class="말풍선 시스템">시스템이 온라인 상태입니다. 질문을 입력하십시오.</div>
       </div>
-      <div>
-        <div class="입력라벨">비밀번호 확인</div>
-        <input class="입력필드" id="가입-비번확인" type="password" placeholder="비밀번호 재입력" autocomplete="new-password"/>
+      <div class="입력구역">
+        <input type="text" id="입력창" class="입력창" placeholder="AI 시스템에게 지시 입력..."/>
+        <button id="전송버튼" class="전송버튼">전송</button>
       </div>
-      <div class="오류문구" id="가입오류"></div>
-      <button class="로그인버튼 버튼-외곽-초록" id="회원가입버튼">회원가입</button>
-      <div class="구분선"><span>또는</span></div>
-      <button class="구글버튼" id="구글로그인버튼2">
-        <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#4285F4" d="M47.5 24.6c0-1.6-.1-3.1-.4-4.6H24v8.7h13.2c-.6 3-2.3 5.5-4.9 7.2v6h7.9c4.6-4.3 7.3-10.6 7.3-17.3z"/><path fill="#34A853" d="M24 48c6.6 0 12.2-2.2 16.3-5.9l-7.9-6c-2.2 1.5-5 2.3-8.4 2.3-6.5 0-12-4.4-13.9-10.3H2v6.2C6 42.5 14.4 48 24 48z"/><path fill="#FBBC05" d="M10.1 28.1c-.5-1.5-.8-3-.8-4.6s.3-3.2.8-4.6v-6.2H2A23.9 23.9 0 0 0 0 24c0 3.9.9 7.5 2.5 10.7l8-6.2-.4-.4z"/><path fill="#EA4335" d="M24 9.5c3.6 0 6.8 1.3 9.4 3.7l7-7C36.2 2.2 30.6 0 24 0 14.4 0 6 5.5 2.5 13.3l8 6.2C12 13.9 17.5 9.5 24 9.5z"/></svg>
-        Google 계정으로 가입/로그인
-      </button>
     </div>
   </div>
 
-  <div class="스캔바"></div>
-</div>
-
-<!-- ══════════ 상단 HUD ══════════ -->
-<div id="hud">
-  <div class="hud블록">
-    <span class="hud라벨">스테이지</span>
-    <span class="hud값 스테이지" id="hud-스테이지">01</span>
-  </div>
-  <div class="hud블록">
-    <span class="hud라벨">보유 자금</span>
-    <span class="hud값 자금" id="hud-자금">₩ 0</span>
-  </div>
-  <div class="hud블록">
-    <span class="hud라벨">초당 수익</span>
-    <span class="hud값 초당수익" id="hud-초당수익">+0/초</span>
-  </div>
-  <div class="hud구분"></div>
-  <button class="버튼-저장" id="저장버튼">💾 서버 저장</button>
-  <button class="버튼-빨강" id="로그아웃버튼">나가기</button>
-  <div id="유저정보"><span id="uid표시">게스트</span></div>
-</div>
-
-<!-- ══════════ 공장 컨베이어 벨트 ══════════ -->
-<div id="공장" aria-label="컨베이어 벨트 공장">
-  <div id="모니터텍스트">
-    시스템 가동 중 ▸ 생산 라인 A1<br>
-    센서 정상 ▸ 처리량: <span id="처리량표시">0.0</span> 개/분
-  </div>
-  <div class="벨트트랙"></div>
-  <div id="로봇팔">
-    <div id="팔내부">
-      <div id="팔몸체"><div id="팔집게"></div></div>
-    </div>
-    <div id="팔잠금">
-      <div class="잠금아이콘">🔒</div>
-      <div class="잠금글자">3단계 해제</div>
-    </div>
-    <div id="팔받침"></div>
-  </div>
-</div>
-
-<!-- ══════════ 메인 콘텐츠 ══════════ -->
-<div id="메인">
-
-  <!-- 스테이지 진행 -->
-  <div id="스테이지카드">
-    <div>
-      <div class="스테이지제목" id="스테이지이름">▸ 1단계 — 초기 가동</div>
-      <div class="스테이지설명" id="스테이지설명">초기 가동 단계. 기본 박스를 생산합니다.</div>
-    </div>
-    <div class="스테이지진행">
-      <div class="진행바배경"><div class="진행바채움" id="진행바" style="width:0%"></div></div>
-      <div class="진행라벨" id="진행라벨">0 / 500 ₩</div>
-    </div>
-    <button id="다음스테이지버튼" disabled>다음 단계 ▸</button>
-  </div>
-
-  <!-- 업그레이드 상점 -->
-  <div id="상점제목">▸ 업그레이드 상점</div>
-  <div id="상점그리드">
-
-    <div class="상점카드" id="카드-모터">
-      <span class="카드아이콘">⚡</span>
-      <div class="카드이름">터보 모터</div>
-      <div class="카드설명">컨베이어 모터를 강화합니다. 박스 생성 속도가 빨라집니다.</div>
-      <div class="카드레벨" id="모터레벨">레벨 0 / 10</div>
-      <div class="카드비용" id="모터비용">₩ 150</div>
-      <button class="카드구매버튼" id="모터구매">[ 업그레이드 ]</button>
-    </div>
-
-    <div class="상점카드" id="카드-라인">
-      <span class="카드아이콘">📦</span>
-      <div class="카드이름">라인 업그레이드</div>
-      <div class="카드설명">생산 라인 품질 향상. 더 고가의 제품을 생산합니다.</div>
-      <div class="카드레벨" id="라인레벨">레벨 0 / 4</div>
-      <div class="카드비용" id="라인비용">₩ 500</div>
-      <button class="카드구매버튼" id="라인구매">[ 업그레이드 ]</button>
-    </div>
-
-    <div class="상점카드 잠김" id="카드-팔">
-      <span class="잠금뱃지">3단계 해제</span>
-      <span class="카드아이콘">🦾</span>
-      <div class="카드이름">로봇 팔 장착</div>
-      <div class="카드설명">자동화 로봇 팔. 박스를 자동으로 수집하여 효율 +40% 증가.</div>
-      <div class="카드레벨" id="팔레벨">잠금 상태</div>
-      <div class="카드비용" id="팔비용">₩ 3,000</div>
-      <button class="카드구매버튼" id="팔구매" disabled>[ 잠금 ]</button>
-    </div>
-
-    <div class="상점카드" id="카드-aiopt">
-      <span class="카드아이콘">🧠</span>
-      <div class="카드이름">AI 최적화 엔진</div>
-      <div class="카드설명">딥러닝 최적화 엔진. 전체 수익이 25% 추가 증가합니다.</div>
-      <div class="카드레벨" id="aiopt레벨">레벨 0 / 3</div>
-      <div class="카드비용" id="aiopt비용">₩ 2,000</div>
-      <button class="카드구매버튼" id="aiopt구매">[ 업그레이드 ]</button>
-    </div>
-
-  </div>
-
-  <!-- AI 비서 패널 -->
-  <div id="ai패널">
-    <div id="ai헤더">
-      <div class="ai점"></div>
-      <span class="ai제목">🤖 AI 공장 비서</span>
-      <span class="ai모델명">GPT-4o-mini</span>
-    </div>
-    <div id="ai채팅창">
-      <div class="채팅메시지 메시지-시스템">[ 시스템 초기화 완료 — AI 코어 온라인 ]</div>
-      <div class="채팅메시지 메시지-ai">시스템 준비 완료. 공장 운영에 관한 문의를 처리할 준비가 되어있습니다. 질문을 입력하십시오.</div>
-    </div>
-    <div id="ai입력행">
-      <input id="ai입력창" type="text" placeholder="공장 최적화 전략을 질문하세요..." maxlength="200"/>
-      <button id="ai전송버튼">전송 ▸</button>
-    </div>
-  </div>
-
-</div>
-
-<!-- 알림 토스트 -->
-<div id="알림"></div>
-
-<!-- ══════════ 스크립트 ══════════ -->
 <script>
-/* ───────────────────────────────────────────
-   탭 전환 (오버레이) — 전역 함수
-─────────────────────────────────────────── */
-function 탭전환(탭명){
-  document.querySelectorAll('.탭버튼').forEach(b=>b.classList.remove('활성'));
-  document.querySelectorAll('.탭패널').forEach(p=>p.classList.remove('활성'));
-  document.getElementById('탭-'+탭명).classList.add('활성');
-  document.getElementById('패널-'+탭명).classList.add('활성');
-  // 오류 초기화
-  document.getElementById('로그인오류').textContent='';
-  document.getElementById('가입오류').textContent='';
-}
-
-/* ───────────────────────────────────────────
-   Firebase 모듈 로드 대기
-─────────────────────────────────────────── */
-function FB대기(cb){ if(window.__FB) cb(); else setTimeout(()=>FB대기(cb), 80); }
-
-FB대기(function(){
-
-const {
-  auth, db,
-  GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged,
-  createUserWithEmailAndPassword, signInWithEmailAndPassword,
-  doc, setDoc, getDoc
-} = window.__FB;
-
-/* ───────────────────────────────────────────
-   게임 상태
-─────────────────────────────────────────── */
-const 게임 = {
-  자금:0, 스테이지:1, 총획득:0,
-  모터레벨:0, 라인레벨:0, 팔보유:false, ai최적화레벨:0,
-  로봇활성:false, 유저:null, 게스트:false,
-};
-
-/* ───────────────────────────────────────────
-   상수
-─────────────────────────────────────────── */
-const 스테이지목록 = [
-  { id:1, 이름:"초기 가동",   설명:"초기 가동 단계. 기본 박스를 생산합니다.",        목표:500    },
-  { id:2, 이름:"라인 확장",   설명:"라인 확장 단계. 전자 기기 생산이 가능합니다.",    목표:3000   },
-  { id:3, 이름:"자동화",      설명:"자동화 단계. 로봇 팔 장착이 해제됩니다.",         목표:15000  },
-  { id:4, 이름:"AI 최적화",   설명:"AI 최적화 단계. 딥러닝 제어 시스템 도입.",        목표:80000  },
-  { id:5, 이름:"퀀텀 공장",   설명:"최종 단계. 퀀텀 코어 생산. 완전 자동화.", 목표:Infinity },
-];
-const 박스종류 = [
-  { 타입:"일반",    아이콘:"📦", 이름:"일반 상자",     가치:8   },
-  { 타입:"전자",    아이콘:"📱", 이름:"전자 기기",     가치:30  },
-  { 타입:"프리미엄",아이콘:"💎", 이름:"프리미엄 코어", 가치:80  },
-  { 타입:"퀀텀",   아이콘:"⚛️", 이름:"퀀텀 코어",     가치:200 },
-];
-const 기본박스주기 = 3400;
-const 로봇팔보너스 = 1.40;
-const 상점데이터 = {
-  모터:{ 비용:[150,300,550,900,1400,2200,3500,5500,9000,15000], 최대:10 },
-  라인:{ 비용:[500,2500,12000,50000], 최대:4 },
-  팔:  { 비용:3000 },
-  ai:  { 비용:[2000,8000,30000], 최대:3 },
-};
-
-/* ───────────────────────────────────────────
-   유틸
-─────────────────────────────────────────── */
-function 포맷(n){
-  if(n>=1e9) return '₩'+(n/1e9).toFixed(2)+'B';
-  if(n>=1e6) return '₩'+(n/1e6).toFixed(2)+'M';
-  if(n>=1e3) return '₩'+(n/1e3).toFixed(1)+'K';
-  return '₩'+Math.floor(n).toLocaleString();
-}
-
-let 알림타이머=null;
-function 알림표시(msg, 색='파랑'){
-  const el=document.getElementById('알림');
-  el.textContent=msg;
-  el.style.borderColor = 색==='초록' ? 'var(--네온초록)' : 색==='빨강' ? 'var(--네온빨강)' : 'var(--네온파랑)';
-  el.style.color       = 색==='초록' ? 'var(--네온초록)' : 색==='빨강' ? 'var(--네온빨강)' : 'var(--네온파랑)';
-  el.classList.add('표시');
-  clearTimeout(알림타이머);
-  알림타이머=setTimeout(()=>el.classList.remove('표시'), 2800);
-}
-
-function 말하기(텍스트){
-  if(!window.speechSynthesis) return;
-  const u=new SpeechSynthesisUtterance(텍스트);
-  u.lang='ko-KR'; u.pitch=0.5; u.rate=0.88; u.volume=0.85;
-  const v=window.speechSynthesis.getVoices().find(x=>x.lang.startsWith('ko'));
-  if(v) u.voice=v;
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(u);
-}
-window.speechSynthesis?.getVoices();
-
-function 초당수익계산(){
-  const 가치=박스종류[Math.min(게임.라인레벨, 박스종류.length-1)].가치;
-  const 주기=Math.max(600, 기본박스주기 - 게임.모터레벨*280);
-  const ai배=1+게임.ai최적화레벨*0.25;
-  const 팔배=게임.로봇활성 ? 로봇팔보너스 : 1;
-  return (가치*(1000/주기))*ai배*팔배;
-}
-
-/* ───────────────────────────────────────────
-   HUD / 상점 갱신
-─────────────────────────────────────────── */
-function HUD갱신(){
-  document.getElementById('hud-자금').textContent=포맷(게임.자금);
-  document.getElementById('hud-스테이지').textContent=String(게임.스테이지).padStart(2,'0');
-  const cps=초당수익계산();
-  document.getElementById('hud-초당수익').textContent='+'+포맷(cps).replace('₩','')+'/초';
-  document.getElementById('처리량표시').textContent=(cps*60/60).toFixed(1);
-
-  const st=스테이지목록[게임.스테이지-1];
-  document.getElementById('스테이지이름').textContent=`▸ ${게임.스테이지}단계 — ${st.이름}`;
-  document.getElementById('스테이지설명').textContent=st.설명;
-  if(st.목표===Infinity){
-    document.getElementById('진행바').style.width='100%';
-    document.getElementById('진행라벨').textContent='최고 단계 도달';
-    document.getElementById('다음스테이지버튼').disabled=true;
-    document.getElementById('다음스테이지버튼').textContent='최고 단계 ✓';
-  } else {
-    const pct=Math.min(100,(게임.총획득/st.목표)*100);
-    document.getElementById('진행바').style.width=pct+'%';
-    document.getElementById('진행라벨').textContent=포맷(게임.총획득).replace('₩','')+' / '+포맷(st.목표).replace('₩','');
-    document.getElementById('다음스테이지버튼').disabled=게임.총획득<st.목표;
-  }
-  상점갱신();
-}
-
-function 상점갱신(){
-  // 모터
-  const ml=게임.모터레벨;
-  document.getElementById('모터레벨').textContent=`레벨 ${ml} / 10`;
-  if(ml>=10){
-    document.getElementById('모터비용').textContent='최고 레벨';
-    const b=document.getElementById('모터구매');
-    b.textContent='[ 최고 레벨 ]'; b.classList.add('최고레벨'); b.disabled=true;
-  } else {
-    const c=상점데이터.모터.비용[ml];
-    document.getElementById('모터비용').textContent=포맷(c);
-    const b=document.getElementById('모터구매');
-    b.disabled=게임.자금<c; b.classList.remove('최고레벨'); b.textContent='[ 업그레이드 ]';
-  }
-  // 라인
-  const ll=게임.라인레벨;
-  document.getElementById('라인레벨').textContent=`레벨 ${ll} / 4`;
-  if(ll>=4){
-    document.getElementById('라인비용').textContent='최고 레벨';
-    const b=document.getElementById('라인구매');
-    b.textContent='[ 최고 레벨 ]'; b.classList.add('최고레벨'); b.disabled=true;
-  } else {
-    const c=상점데이터.라인.비용[ll];
-    document.getElementById('라인비용').textContent=포맷(c);
-    const b=document.getElementById('라인구매');
-    b.disabled=게임.자금<c; b.classList.remove('최고레벨'); b.textContent='[ 업그레이드 ]';
-  }
-  // 팔
-  if(게임.스테이지>=3){
-    document.getElementById('카드-팔').classList.remove('잠김');
-    const 뱃지=document.querySelector('#카드-팔 .잠금뱃지');
-    if(뱃지) 뱃지.textContent='구매 가능';
-    if(게임.팔보유){
-      document.getElementById('팔레벨').textContent='장착 완료 ✓';
-      const b=document.getElementById('팔구매');
-      b.textContent='[ 작동 중 ]'; b.classList.add('최고레벨'); b.disabled=true;
-    } else {
-      document.getElementById('팔레벨').textContent='미장착';
-      document.getElementById('팔비용').textContent=포맷(상점데이터.팔.비용);
-      const b=document.getElementById('팔구매');
-      b.disabled=게임.자금<상점데이터.팔.비용; b.textContent='[ 구매 ]';
-    }
-  } else {
-    document.getElementById('팔구매').disabled=true;
-    document.getElementById('팔레벨').textContent='잠금 상태';
-  }
-  // AI 최적화
-  const al=게임.ai최적화레벨;
-  document.getElementById('aiopt레벨').textContent=`레벨 ${al} / 3`;
-  if(al>=3){
-    document.getElementById('aiopt비용').textContent='최고 레벨';
-    const b=document.getElementById('aiopt구매');
-    b.textContent='[ 최고 레벨 ]'; b.classList.add('최고레벨'); b.disabled=true;
-  } else {
-    const c=상점데이터.ai.비용[al];
-    document.getElementById('aiopt비용').textContent=포맷(c);
-    const b=document.getElementById('aiopt구매');
-    b.disabled=게임.자금<c; b.classList.remove('최고레벨'); b.textContent='[ 업그레이드 ]';
-  }
-}
-
-/* ───────────────────────────────────────────
-   박스 시스템
-─────────────────────────────────────────── */
-let 박스타이머=null;
-const 활성박스=[];
-
-function 박스주기(){ return Math.max(600, 기본박스주기 - 게임.모터레벨*280); }
-
-function 박스생성(){
-  const 공장=document.getElementById('공장');
-  const 종류=박스종류[Math.min(게임.라인레벨, 박스종류.length-1)];
-  const 박스=document.createElement('div');
-  박스.className=`박스 박스-${종류.타입}`;
-  박스.textContent=종류.아이콘;
-  박스.style.left='-50px';
-
-  const 클릭=(e)=>{
-    e.stopPropagation();
-    const r=박스.getBoundingClientRect();
-    const ai배=1+게임.ai최적화레벨*0.25;
-    const 획득=Math.floor(종류.가치*1.2*ai배);
-    게임.자금+=획득; 게임.총획득+=획득;
-    플로팅(r.left+r.width/2, r.top, '+'+포맷(획득));
-    박스제거(박스); HUD갱신();
+document.addEventListener('DOMContentLoaded', () => {
+  /* ───────────────────────────────────────────
+     게임 핵심 변수 및 상태
+  ─────────────────────────────────────────── */
+  const 게임 = {
+    자금: 0,
+    스테이지: 1,
+    모터레벨: 1,
+    라인레벨: 1,
+    생산진행도: 0
   };
-  박스.addEventListener('click', 클릭);
-  박스.addEventListener('touchstart', 클릭, {passive:true});
-  공장.appendChild(박스); 활성박스.push(박스);
 
-  let posX=-50;
-  const 팔위치=공장.offsetWidth-96;
-  const 속도=1.2+게임.모터레벨*0.08;
+  let 로그인유저 = null;
 
-  const 이동=()=>{
-    posX+=속도; 박스.style.left=posX+'px';
-    if(게임.로봇활성 && posX>=팔위치-10){
-      const ai배=1+게임.ai최적화레벨*0.25;
-      const 획득=Math.floor(종류.가치*로봇팔보너스*ai배);
-      게임.자금+=획득; 게임.총획득+=획득;
-      팔스윙(); 플로팅(팔위치,40,'+'+포맷(획득));
-      박스제거(박스); HUD갱신(); return;
-    }
-    if(posX>공장.offsetWidth){
-      const ai배=1+게임.ai최적화레벨*0.25;
-      const 획득=Math.floor(종류.가치*ai배);
-      게임.자금+=획득; 게임.총획득+=획득;
-      박스제거(박스); HUD갱신(); return;
-    }
-    if(박스.parentNode) requestAnimationFrame(이동);
-  };
-  requestAnimationFrame(이동);
-}
-
-function 박스제거(박스){
-  박스.style.cssText+='transform:scale(0);transition:transform .15s;';
-  setTimeout(()=>박스.parentNode?.removeChild(박스),160);
-  const i=활성박스.indexOf(박스); if(i>=0) 활성박스.splice(i,1);
-}
-function 생성재시작(){ clearInterval(박스타이머); 박스타이머=setInterval(박스생성, 박스주기()); }
-
-function 플로팅(x,y,txt){
-  const el=document.createElement('div');
-  el.className='플로팅'; el.textContent=txt;
-  el.style.left=x+'px'; el.style.top=y+'px';
-  document.body.appendChild(el);
-  setTimeout(()=>el.remove(),1200);
-}
-
-/* ───────────────────────────────────────────
-   로봇 팔
-─────────────────────────────────────────── */
-let 팔스윙중=false;
-function 팔활성화(){
-  게임.로봇활성=true;
-  document.getElementById('팔잠금').style.display='none';
-  document.getElementById('팔내부').style.display='flex';
-  const 몸=document.getElementById('팔몸체');
-  몸.style.background='linear-gradient(180deg,var(--네온파랑),#004a80)';
-  몸.style.boxShadow='0 0 12px var(--네온파랑)';
-}
-function 팔스윙(){
-  if(팔스윙중) return; 팔스윙중=true;
-  const 몸=document.getElementById('팔몸체');
-  몸.style.transition='transform .15s ease-in'; 몸.style.transform='rotate(40deg)';
-  setTimeout(()=>{
-    몸.style.transition='transform .25s ease-out'; 몸.style.transform='rotate(-15deg)';
-    setTimeout(()=>{ 몸.style.transform='rotate(0deg)'; 팔스윙중=false; },250);
-  },150);
-}
-
-/* ───────────────────────────────────────────
-   구매 이벤트
-─────────────────────────────────────────── */
-document.getElementById('모터구매').addEventListener('click',()=>{
-  if(게임.모터레벨>=10) return;
-  const c=상점데이터.모터.비용[게임.모터레벨];
-  if(게임.자금<c){알림표시('⚠ 자금이 부족합니다','빨강');return;}
-  게임.자금-=c; 게임.모터레벨++; 생성재시작();
-  알림표시(`⚡ 터보 모터 레벨 ${게임.모터레벨} — 속도 강화 완료`,'초록');
-  말하기(`터보 모터 레벨 ${게임.모터레벨} 업그레이드 완료`);
-  HUD갱신();
-});
-document.getElementById('라인구매').addEventListener('click',()=>{
-  if(게임.라인레벨>=4) return;
-  const c=상점데이터.라인.비용[게임.라인레벨];
-  if(게임.자금<c){알림표시('⚠ 자금이 부족합니다','빨강');return;}
-  게임.자금-=c; 게임.라인레벨++;
-  const 새박스=박스종류[Math.min(게임.라인레벨, 박스종류.length-1)];
-  알림표시(`📦 라인 레벨 ${게임.라인레벨} — ${새박스.이름} 생산 시작`,'초록');
-  말하기(`생산 라인 레벨 ${게임.라인레벨} 업그레이드 완료. ${새박스.이름} 생산을 시작합니다.`);
-  HUD갱신();
-});
-document.getElementById('팔구매').addEventListener('click',()=>{
-  if(게임.팔보유||게임.스테이지<3) return;
-  const c=상점데이터.팔.비용;
-  if(게임.자금<c){알림표시('⚠ 자금이 부족합니다','빨강');return;}
-  게임.자금-=c; 게임.팔보유=true; 팔활성화();
-  알림표시('🦾 로봇 팔 장착 완료 — 자동화 시스템 가동','초록');
-  말하기('로봇 팔 장착 완료. 자동화 시스템이 가동됩니다.');
-  HUD갱신();
-});
-document.getElementById('aiopt구매').addEventListener('click',()=>{
-  if(게임.ai최적화레벨>=3) return;
-  const c=상점데이터.ai.비용[게임.ai최적화레벨];
-  if(게임.자금<c){알림표시('⚠ 자금이 부족합니다','빨강');return;}
-  게임.자금-=c; 게임.ai최적화레벨++;
-  알림표시(`🧠 AI 최적화 레벨 ${게임.ai최적화레벨} — 수익 +${게임.ai최적화레벨*25}% 적용`,'초록');
-  말하기(`AI 최적화 레벨 ${게임.ai최적화레벨} 활성화 완료`);
-  HUD갱신();
-});
-
-/* ───────────────────────────────────────────
-   다음 스테이지
-─────────────────────────────────────────── */
-document.getElementById('다음스테이지버튼').addEventListener('click',()=>{
-  if(게임.스테이지>=스테이지목록.length) return;
-  if(게임.총획득<스테이지목록[게임.스테이지-1].목표) return;
-  게임.스테이지++;
-  if(게임.스테이지>=3 && !게임.팔보유)
-    document.getElementById('카드-팔').classList.remove('잠김');
-  const 새=스테이지목록[게임.스테이지-1];
-  알림표시(`🏭 ${게임.스테이지}단계 — ${새.이름} 달성!`,'초록');
-  말하기(`${게임.스테이지}단계 ${새.이름} 달성. 시스템을 확장합니다.`);
-  HUD갱신();
-  const 공장=document.getElementById('공장');
-  공장.style.transition='box-shadow .3s';
-  공장.style.boxShadow='0 0 30px var(--네온초록)';
-  setTimeout(()=>공장.style.boxShadow='',600);
-});
-
-/* ───────────────────────────────────────────
-   인증 — 이메일 로그인
-─────────────────────────────────────────── */
-document.getElementById('이메일로그인버튼').addEventListener('click', async ()=>{
-  const 이메일=document.getElementById('로그인-이메일').value.trim();
-  const 비번=document.getElementById('로그인-비번').value;
-  const 오류el=document.getElementById('로그인오류');
-  오류el.textContent='';
-  if(!이메일||!비번){오류el.textContent='이메일과 비밀번호를 입력하세요.';return;}
-  try{
-    await signInWithEmailAndPassword(auth, 이메일, 비번);
-  } catch(e){
-    const 메시지={
-      'auth/user-not-found':'등록되지 않은 이메일입니다.',
-      'auth/wrong-password':'비밀번호가 올바르지 않습니다.',
-      'auth/invalid-email':'이메일 형식이 올바르지 않습니다.',
-      'auth/invalid-credential':'이메일 또는 비밀번호가 올바르지 않습니다.',
-      'auth/too-many-requests':'요청이 너무 많습니다. 잠시 후 다시 시도하세요.',
-    };
-    오류el.textContent = 메시지[e.code] || ('오류: '+e.message);
-  }
-});
-
-/* ───────────────────────────────────────────
-   인증 — 회원가입
-─────────────────────────────────────────── */
-document.getElementById('회원가입버튼').addEventListener('click', async ()=>{
-  const 이메일=document.getElementById('가입-이메일').value.trim();
-  const 비번=document.getElementById('가입-비번').value;
-  const 비번확인=document.getElementById('가입-비번확인').value;
-  const 오류el=document.getElementById('가입오류');
-  오류el.textContent='';
-  if(!이메일||!비번){오류el.textContent='이메일과 비밀번호를 입력하세요.';return;}
-  if(비번.length<6){오류el.textContent='비밀번호는 6자 이상이어야 합니다.';return;}
-  if(비번!==비번확인){오류el.textContent='비밀번호가 일치하지 않습니다.';return;}
-  try{
-    await createUserWithEmailAndPassword(auth, 이메일, 비번);
-    알림표시('✅ 회원가입 완료! 환영합니다.','초록');
-  } catch(e){
-    const 메시지={
-      'auth/email-already-in-use':'이미 사용 중인 이메일입니다.',
-      'auth/invalid-email':'이메일 형식이 올바르지 않습니다.',
-      'auth/weak-password':'비밀번호가 너무 약합니다.',
-    };
-    오류el.textContent = 메시지[e.code] || ('오류: '+e.message);
-  }
-});
-
-/* ───────────────────────────────────────────
-   인증 — 구글 로그인 (두 버튼 공통)
-─────────────────────────────────────────── */
-function 구글로그인실행(){
-  const provider=new GoogleAuthProvider();
-  signInWithPopup(auth, provider).catch(e=>{
-    알림표시('⚠ 구글 로그인 실패: '+e.message,'빨강');
-  });
-}
-document.getElementById('구글로그인버튼1').addEventListener('click', 구글로그인실행);
-document.getElementById('구글로그인버튼2').addEventListener('click', 구글로그인실행);
-
-/* ───────────────────────────────────────────
-   인증 — 게스트 / 로그아웃
-─────────────────────────────────────────── */
-document.getElementById('게스트버튼').addEventListener('click',()=>{
-  게임.게스트=true;
-  document.getElementById('overlay').style.display='none';
-  document.getElementById('uid표시').textContent='게스트';
-  게임시작();
-});
-document.getElementById('로그아웃버튼').addEventListener('click',()=>{
-  if(게임.게스트) location.reload();
-  else signOut(auth).then(()=>location.reload());
-});
-
-/* ───────────────────────────────────────────
-   인증 상태 감시 (로그인 성공 시 자동 처리)
-─────────────────────────────────────────── */
-onAuthStateChanged(auth, async (user)=>{
-  if(user){
-    게임.유저=user; 게임.게스트=false;
-    document.getElementById('uid표시').innerHTML=`<span>${user.displayName||user.email}</span>`;
-    document.getElementById('overlay').style.display='none';
-    try{
-      const snap=await getDoc(doc(db,'saves',user.uid));
-      if(snap.exists()){
-        const d=snap.data();
-        게임.자금=d.money||0; 게임.스테이지=d.stage||1; 게임.총획득=d.totalEarned||0;
-        게임.모터레벨=d.motorLv||0; 게임.라인레벨=d.lineLv||0;
-        게임.팔보유=d.armOwned||false; 게임.ai최적화레벨=d.aiOptLv||0;
-        알림표시('✅ 저장 데이터 불러오기 완료','초록');
-        말하기('저장된 데이터를 불러왔습니다. 공장 가동을 재개합니다.');
-      }
-    } catch(e){ 알림표시('⚠ 저장 불러오기 실패','빨강'); }
-    게임시작();
-  }
-});
-
-/* ───────────────────────────────────────────
-   서버 저장
-─────────────────────────────────────────── */
-document.getElementById('저장버튼').addEventListener('click', async ()=>{
-  if(게임.게스트||!게임.유저){알림표시('⚠ 로그인 후 저장이 가능합니다','빨강');return;}
-  try{
-    await setDoc(doc(db,'saves',게임.유저.uid),{
-      money:게임.자금, stage:게임.스테이지, totalEarned:게임.총획득,
-      motorLv:게임.모터레벨, lineLv:게임.라인레벨,
-      armOwned:게임.팔보유, aiOptLv:게임.ai최적화레벨,
-      savedAt:new Date().toISOString()
-    });
-    알림표시('💾 서버 저장 완료!','초록');
-    말하기('서버 저장이 완료되었습니다.');
-  } catch(e){ 알림표시('⚠ 저장 실패: '+e.message,'빨강'); }
-});
-
-/* ───────────────────────────────────────────
-   게임 시작
-─────────────────────────────────────────── */
-function 게임시작(){
-  if(게임.팔보유) 팔활성화();
-  else{
-    document.getElementById('팔내부').style.display='none';
-    document.getElementById('팔잠금').style.display='flex';
-  }
-  생성재시작(); HUD갱신();
-  말하기('방치형 스마트 공장 타이쿤에 오신 것을 환영합니다. 공장 가동을 시작합니다.');
-}
-
-/* ───────────────────────────────────────────
-   AI 비서 — GPT API
-─────────────────────────────────────────── */
-const 채팅창=document.getElementById('ai채팅창');
-const 입력창=document.getElementById('ai입력창');
-const 전송버튼=document.getElementById('ai전송버튼');
-
-function 메시지추가(txt, 역할){
-  const d=document.createElement('div');
-  d.className=`채팅메시지 메시지-${역할}`;
-  d.textContent=txt;
-  채팅창.appendChild(d);
-  채팅창.scrollTop=채팅창.scrollHeight;
-}
-
-/* ───────────────────────────────────────────
-   AI 비서 — Apps Script 연동 (API 키 완벽 숨김)
-─────────────────────────────────────────── */
-async function GPT전송(){
-  const q = 입력창.value.trim(); if(!q) return;
+  // DOM 캐싱
+  const HUD자금 = document.getElementById('HUD-자금');
+  const HUD스테이지 = document.getElementById('HUD-스테이지');
+  const HUD모터레벨 = document.getElementById('HUD-모터레벨');
+  const HUD라인레벨 = document.getElementById('HUD-라인레벨');
+  const 생산효율지표 = document.getElementById('생산효율지표');
+  const 라인게이지 = document.getElementById('라인게이지');
   
-  입력창.value = ''; 전송버튼.disabled = true;
-  메시지추가(q, '유저');
-  메시지추가('[ 분석 중... ]', '시스템');
+  const btn모터 = document.getElementById('btn-모터');
+  const btn라인 = document.getElementById('btn-라인');
+  const cost모터 = document.getElementById('cost-모터');
+  const cost라인 = document.getElementById('cost-라인');
 
-  const 시스템 = '당신은 스마트 공장의 AI 제어 시스템입니다. '
-    + '모든 답변은 차갑고 전문적이며 기계적인 어조로 작성하세요. '
-    + '이모지는 기계/공장 관련(⚙️🏭🤖📊)만 허용됩니다. '
-    + `현재 공장 상태: ${게임.스테이지}단계, 보유 자금 ${포맷(게임.자금)}, `
-    + `모터 레벨 ${게임.모터레벨}, 라인 레벨 ${게임.라인레벨}. `
-    + '답변은 3~5문장, 반드시 한국어로.';
+  const 인증모달 = document.getElementById('인증모달');
+  const 인증이메일 = document.getElementById('인증-이메일');
+  const 인증비번 = document.getElementById('인증-비번');
+  const 이메일로그인버튼 = document.getElementById('이메일로그인버튼');
+  const 회원가입버튼 = document.getElementById('회원가입버튼');
+  
+  const 유저라벨 = document.getElementById('유저라벨');
+  const 상단로그아웃버튼 = document.getElementById('상단로그아웃버튼');
+  const 서버저장버튼 = document.getElementById('서버저장버튼');
 
-  try {
-    // 🔗 본인의 Google Apps Script 웹앱 URL
-    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyTS-n6dNxhXGHxck-BL97z9l2PPrqZbl0tqjtPIP44MVFtyOiTwizk4jva8GMuV38p/exec';
+  const 채팅창 = document.getElementById('채팅창');
+  const 입력창 = document.getElementById('입력창');
+  const 전송버튼 = document.getElementById('전송버튼');
 
-    const res = await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      body: JSON.stringify({ prompt: 시스템 + '\n\n질문: ' + q })
+  function 포맷(v) { return Math.floor(v).toLocaleString() + ' ₩'; }
+
+  /* ───────────────────────────────────────────
+     파이어베이스 계정 및 데이터 연동 로직
+  ─────────────────────────────────────────── */
+  const 인터벌 = setInterval(() => {
+    if (window.__FB) {
+      clearInterval(인터벌);
+      FB연동시작();
+    }
+  }, 100);
+
+  function FB연동시작() {
+    const { auth, onAuthStateChanged } = window.__FB;
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        로그인유저 = user;
+        유저라벨.innerText = user.email + " (접속됨)";
+        인증모달.classList.add('숨김');
+        상단로그아웃버튼.classList.remove('숨김');
+        서버저장버튼.classList.remove('숨김');
+        await 데이터불러오기();
+      } else {
+        로그인유저 = null;
+        유저라벨.innerText = "로그인이 필요합니다.";
+        인증모달.classList.remove('숨김');
+        상단로그아웃버튼.classList.add('숨김');
+        서버저장버튼.classList.add('숨김');
+      }
     });
+  }
 
-    const data = await res.json();
+  // 회원가입 트리거
+  회원가입버튼.addEventListener('click', async () => {
+    const email = 인증이메일.value.trim();
+    const password = 인증비번.value.trim();
+    if(!email || !password) return alert('정보를 입력하세요.');
+    
+    try {
+      const { auth, createUserWithEmailAndPassword } = window.__FB;
+      await createUserWithEmailAndPassword(auth, email, password);
+      alert('공장 관리자 등록 완료! 자동 로그인됩니다.');
+    } catch(e) {
+      alert('등록 실패: ' + e.message);
+    }
+  });
 
-    if (data.error) {
-      throw new Error(data.error);
+  // 로그인 트리거
+  이메일로그인버튼.addEventListener('click', async () => {
+    const email = 인증이메일.value.trim();
+    const password = 인증비번.value.trim();
+    if(!email || !password) return alert('정보를 입력하세요.');
+
+    try {
+      const { auth, signInWithEmailAndPassword } = window.__FB;
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch(e) {
+      alert('로그인 실패: ' + e.message);
+    }
+  });
+
+  // 로그아웃 트리거
+  상단로그아웃버튼.addEventListener('click', () => {
+    const { auth, signOut } = window.__FB;
+    signOut(auth).then(() => { alert('시스템 로그아웃 완료.'); location.reload(); });
+  });
+
+  // 🌟 [안전화 완료] 서버 저장 로직 (데이터 누락 및 setDoc 에러 완벽 해결)
+  async function 서버저장() {
+    if (!로그인유저) { alert("로그인이 필요합니다."); return; }
+    try {
+      const { db, doc, setDoc } = window.__FB;
+      const userDocRef = doc(db, "users", 로그인유저.uid);
+
+      // 데이터가 undefined 상태여서 파이어베이스 규칙을 깨뜨리는 현상을 방지합니다.
+      const 데이터보내기 = {
+        게임데이터: {
+          자금: typeof 게임.자금 !== 'undefined' ? 게임.자금 : 0,
+          스테이지: typeof 게임.스테이지 !== 'undefined' ? 게임.스테이지 : 1,
+          모터레벨: typeof 게임.모터레벨 !== 'undefined' ? 게임.모터레벨 : 1,
+          라인레벨: typeof 게임.라인레벨 !== 'undefined' ? 게임.라인레벨 : 1,
+          저장시간: new Date().toISOString()
+        }
+      };
+
+      await setDoc(userDocRef, 데이터보내기, { merge: true });
+      alert("성공적으로 서버에 저장되었습니다!");
+    } catch (e) {
+      console.error("저장 오류:", e);
+      alert("서버 저장 실패: " + e.message);
+    }
+  }
+  서버저장버튼.addEventListener('click', 서버저장);
+
+  // 데이터 불러오기 로직
+  async function 데이터불러오기() {
+    try {
+      const { db, doc, getDoc } = window.__FB;
+      const userDocRef = doc(db, "users", 로그인유저.uid);
+      const snapshot = await getDoc(userDocRef);
+      
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        if (data && data.게임데이터) {
+          게임.자금 = data.게임데이터.자금 || 0;
+          게임.스테이지 = data.게임데이터.스테이지 || 1;
+          게임.모터레벨 = data.게임데이터.모터레벨 || 1;
+          게임.라인레벨 = data.게임데이터.라인레벨 || 1;
+          HUD갱신();
+          메시지추가("[시스템] 이전 공장 가동 데이터를 동기화했습니다.", "시스템");
+        }
+      }
+    } catch(e) {
+      console.error("동기화 실패:", e);
+    }
+  }
+
+  /* ───────────────────────────────────────────
+     타이쿤 게임 플레이 핵심 엔진 메커니즘
+  ─────────────────────────────────────────── */
+  function HUD갱신() {
+    HUD자금.innerText = 포맷(게임.자금);
+    HUD스테이지.innerText = 게임.스테이지 + ' 단계';
+    HUD모터레벨.innerText = 'Lv.' + 게임.모터레벨;
+    HUD라인레벨.innerText = 'Lv.' + 게임.라인레벨;
+
+    const 주기당수익 = 게임.라인레벨 * 150 * 게임.스테이지;
+    생산효율지표.innerText = `생산당 수익: +${주기당수익.toLocaleString()} ₩`;
+
+    const 모터비용 = 게임.모터레벨 * 1000 * 게임.스테이지;
+    const 라인비용 = 게임.라인레벨 * 1500 * 게임.스테이지;
+
+    cost모터.innerText = 포맷(모터비용);
+    cost라인.innerText = 포맷(라인비용);
+
+    btn모터.disabled = (게임.자금 < 모터비용);
+    btn라인.disabled = (게임.자금 < 라인비용);
+  }
+
+  // 하드웨어 강화 상호작용
+  btn모터.addEventListener('click', () => {
+    const 비용 = 게임.모터레벨 * 1000 * 게임.스테이지;
+    if (게임.자금 >= 비용) {
+      게임.자금 -= 비용;
+      게임.모터레벨++;
+      if (게임.모터레벨 >= 5 && 게임.스테이지 === 1) { 게임.스테이지 = 2; 메시지추가("⚙️ [공장 확장] 2단계 공장으로 격상되었습니다!", "시스템"); }
+      HUD갱신();
+    }
+  });
+
+  btn라인.addEventListener('click', () => {
+    const 비용 = 게임.라인레벨 * 1500 * 게임.스테이지;
+    if (게임.자금 >= 비용) {
+      게임.자금 -= 비용;
+      게임.라인레벨++;
+      HUD갱신();
+    }
+  });
+
+  // 주기적 자동 생산 연산 틱 루프
+  let 이전시간 = performance.now();
+  function 루프(현재시간) {
+    const DeltaTime = (현재시간 - 이전시간) / 1000;
+    이전시간 = 현재시간;
+
+    const 모터속도계수 = 15 + (게임.모터레벨 * 5); 
+    게임.생산진행도 += 모터속도계수 * DeltaTime;
+
+    if (게임.생산진행도 >= 100) {
+      게임.생산진행도 = 0;
+      const 수익 = 게임.라인레벨 * 150 * 게임.스테이지;
+      게임.자금 += 수익;
+      HUD갱신();
     }
 
-    const txt = data.answer || '[응답 없음]';
-    
-    채팅창.querySelectorAll('.메시지-시스템').forEach((el,i,arr)=>{ if(i===arr.length-1) el.remove(); });
-    메시지추가(txt, 'ai');
-    if (typeof 말하기 === 'function') 말하기('AI 분석이 완료되었습니다. 답변이 출력되었습니다.');
-  } catch(e) {
-    채팅창.querySelectorAll('.메시지-시스템').forEach((el,i,arr)=>{ if(i===arr.length-1) el.remove(); });
-    메시지추가('[연결 오류] ' + e.message + ' — 네트워크 또는 Apps Script 설정을 확인하십시오.', 'ai');
-  } finally {
-    전송버튼.disabled = false;
+    라인게이지.style.width = 게임.생산진행도 + '%';
+    requestAnimationFrame(루프);
   }
-}
+  requestAnimationFrame(루프);
 
-전송버튼.addEventListener('click', GPT전송);
-입력창.addEventListener('keydown', e => { if(e.key === 'Enter') GPT전송(); });
+  /* ───────────────────────────────────────────
+     AI 비서 — Apps Script 최종 연동 (수정 완료)
+  ─────────────────────────────────────────── */
+  function 메시지추가(내용, 종류) {
+    const div = document.createElement('div');
+    div.classList.add('말풍선', 종류);
+    div.innerText = 내용;
+    채팅창.appendChild(div);
+    채팅창.scrollTop = 채팅창.scrollHeight;
+  }
 
-/* ───────────────────────────────────────────
-   엔터키 → 로그인 / 회원가입 트리거
-─────────────────────────────────────────── */
-['로그인-이메일','로그인-비번'].forEach(id=>{
-  const el = document.getElementById(id);
-  if(el) el.addEventListener('keydown', e=>{
-    if(e.key==='Enter') document.getElementById('이메일로그인버튼').click();
+  async function GPT전송(){
+    const q = 입력창.value.trim(); if(!q) return;
+    
+    입력창.value = ''; 전송버튼.disabled = true;
+    메시지추가(q, '유저');
+    메시지추가('[ 분석 중... ]', '시스템');
+
+    const 시스템 = '당신은 스마트 공장의 AI 제어 시스템입니다. '
+      + '모든 답변은 차갑고 전문적이며 기계적인 어조로 작성하세요. '
+      + '이모지는 기계/공장 관련(⚙️🏭🤖📊)만 허용됩니다. '
+      + `현재 공장 상태: ${게임.스테이지}단계, 보유 자금 ${포맷(게임.자금)}, `
+      + `모터 레벨 ${게임.모터레벨}, 라인 레벨 ${게임.라인레벨}. `
+      + '답변은 3~5문장, 반드시 한국어로.';
+
+    try {
+      // 🔗 보내주신 최신 Google Apps Script 웹앱 URL을 완벽하게 적용했습니다!
+      const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw4Ecg2fN3JTlFoKsenyhBq_pqwksRd3z90RE-WXMCfHQ1FnKErNwGxCkBC8xwSy2Il/exec';
+
+      const res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ prompt: 시스템 + '\n\n질문: ' + q })
+      });
+
+      const data = await res.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      const txt = data.answer || '[응답 없음]';
+      
+      채팅창.querySelectorAll('.메시지-시스템').forEach((el,i,arr)=>{ if(i===arr.length-1) el.remove(); });
+      메시지추가(txt, 'ai');
+    } catch(e) {
+      채팅창.querySelectorAll('.메시지-시스템').forEach((el,i,arr)=>{ if(i===arr.length-1) el.remove(); });
+      메시지추가('[연결 오류] ' + e.message + ' — 네트워크 또는 Apps Script 설정을 확인하십시오.', 'ai');
+    } finally {
+      전송버튼.disabled = false;
+    }
+  }
+
+  전송버튼.addEventListener('click', GPT전송);
+  입력창.addEventListener('keydown', e => { if(e.key === 'Enter') GPT전송(); });
+
+  // 엔터키 로그인 보조 편의성 기능
+  ['인증-이메일','인증-비번'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('keydown', e => {
+      if(e.key === 'Enter') 이메일로그인버튼.click();
+    });
   });
-});
-['가입-이메일','가입-비번','가입-비번확인'].forEach(id=>{
-  const el = document.getElementById(id);
-  if(el) el.addEventListener('keydown', e=>{
-    if(e.key==='Enter') document.getElementById('회원가입버튼').click();
-  });
-});
 
-/* ───────────────────────────────────────────
-   주기적 HUD 갱신
-─────────────────────────────────────────── */
-setInterval(HUD갱신, 1000);
-
-}); // FB대기 끝
+  setInterval(HUD갱신, 1000);
+});
 </script>
 </body>
 </html>
