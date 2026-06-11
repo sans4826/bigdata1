@@ -14,7 +14,7 @@
   import { getFirestore, doc, setDoc, getDoc }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  // ⚠️ 본인 Firebase 프로젝트 값 (여기는 GitHub에 공개되어도 안전합니다!)
+  // Firebase 설정
   const firebaseConfig = {
     apiKey: "AIzaSyBH3MnIsDLamBCogW27DT-4schLxKnBMys",
     authDomain: "bigdata00-db9de.firebaseapp.com",
@@ -28,7 +28,7 @@
   const auth = getAuth(app);
   const db = getFirestore(app);
 
-  // 아래쪽 스크립트에서 쓸 수 있도록 Firebase 기능들 연결
+  // 전역 연동
   window.__FB = { 
     auth, db, signOut, onAuthStateChanged, 
     createUserWithEmailAndPassword, signInWithEmailAndPassword, 
@@ -37,18 +37,15 @@
 </script>
 
 <style>
-  /* ------------------------------------------------------------
-     🎨 UI STYLES (기존 테마 스타일 유지)
-     ------------------------------------------------------------ */
   :root {
-    --bg-dark: #121214;
-    --panel-bg: #1e1e24;
-    --panel-border: #2a2a32;
-    --accent-blue: #3b82f6;
-    --accent-green: #10b981;
-    --accent-amber: #f59e0b;
-    --text-main: #f3f4f6;
-    --text-muted: #9ca3af;
+    --bg-dark: #0f1115;
+    --panel-bg: #161920;
+    --panel-border: #242936;
+    --accent-blue: #00f0ff;
+    --accent-green: #00ff66;
+    --accent-amber: #ffaa00;
+    --text-main: #e2e8f0;
+    --text-muted: #64748b;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
   body {
@@ -62,463 +59,143 @@
   header {
     background-color: var(--panel-bg);
     border-bottom: 1px solid var(--panel-border);
-    padding: 12px 20px;
+    padding: 15px 24px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
   }
-  header h1 { font-size: 1.25rem; font-weight: 700; color: var(--accent-blue); display: flex; align-items: center; gap: 8px; }
+  header h1 { font-size: 1.3rem; font-weight: 800; color: var(--accent-blue); letter-spacing: 1px; display: flex; align-items: center; gap: 10px; }
   
-  .유저정보구역 { display: flex; align-items: center; gap: 12px; }
-  .인증버튼 {
-    background: #2563eb; color: #fff; border: none; padding: 6px 12px;
-    border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 600;
+  .user-zone { display: flex; align-items: center; gap: 14px; }
+  .auth-btn {
+    background: #1e293b; color: #fff; border: 1px solid var(--panel-border); padding: 8px 16px;
+    border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.2s;
   }
-  .인증버튼.로그아웃 { background: #dc2626; }
+  .auth-btn:hover { border-color: var(--accent-blue); background: #0f172a; }
+  .auth-btn.logout { background: #991b1b; border-color: #7f1d1d; }
+  .auth-btn.logout:hover { background: #7f1d1d; }
   
-  .메인컨테이너 { flex: 1; display: flex; overflow: hidden; }
-  .게임패널 { flex: 1; display: flex; flex-direction: column; border-right: 1px solid var(--panel-border); }
-  .HUD {
-    background: #18181c; padding: 15px 20px;
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;
+  .main-container { flex: 1; display: flex; overflow: hidden; }
+  .game-panel { flex: 1; display: flex; flex-direction: column; border-right: 1px solid var(--panel-border); }
+  
+  .hud-bar {
+    background: #0b0d10; padding: 20px;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;
     border-bottom: 1px solid var(--panel-border);
   }
-  .HUD항목 { background: var(--panel-bg); padding: 10px 15px; border-radius: 6px; border: 1px solid var(--panel-border); }
-  .HUD라벨 { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; }
-  .HUD값 { font-size: 1.25rem; font-weight: 700; }
-  .HUD값.자금 { color: var(--accent-green); }
+  .hud-item { background: var(--panel-bg); padding: 14px 18px; border-radius: 8px; border: 1px solid var(--panel-border); position: relative; overflow: hidden; }
+  .hud-item::before { content:''; position:absolute; top:0; left:0; width:4px; height:100%; background:var(--panel-border); }
+  .hud-item.money-item::before { background: var(--accent-green); }
+  .hud-item.stage-item::before { background: var(--accent-blue); }
+  .hud-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 6px; letter-spacing: 0.5px; }
+  .hud-val { font-size: 1.4rem; font-weight: 800; letter-spacing: -0.5px; }
+  .hud-val.money { color: var(--accent-green); text-shadow: 0 0 10px rgba(0,255,102,0.2); }
   
-  .컨텐츠구역 { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
-  .컨트롤카드 {
+  .content-area { flex: 1; padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 24px; }
+  .control-card {
     background: var(--panel-bg); border: 1px solid var(--panel-border);
-    border-radius: 8px; padding: 20px;
+    border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
   }
-  .카드제목 { font-size: 1rem; font-weight: 600; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+  .card-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 20px; color: #f8fafc; display: flex; justify-content: space-between; align-items: center; }
   
-  .업그레이드그리드 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
-  .강화버튼 {
-    background: #27272a; border: 1px solid var(--panel-border); color: #fff;
-    padding: 15px; border-radius: 6px; text-align: left; cursor: pointer;
-    transition: all 0.2s; display: flex; flex-direction: column; gap: 4px;
+  .upgrade-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+  .upgrade-btn {
+    background: #1e222b; border: 1px solid #2e3545; color: #fff;
+    padding: 20px; border-radius: 10px; text-align: left; cursor: pointer;
+    transition: all 0.2s; display: flex; flex-direction: column; gap: 6px; position: relative;
   }
-  .강화버튼:hover:not(:disabled) { border-color: var(--accent-blue); background: #2e2e35; }
-  .강화버튼:disabled { opacity: 0.5; cursor: not-allowed; }
-  .강화이름 { font-weight: 600; font-size: 0.95rem; }
-  .강화설명 { font-size: 0.8rem; color: var(--text-muted); }
-  .강화비용 { font-size: 0.9rem; color: var(--accent-amber); font-weight: 600; margin-top: 4px; }
+  .upgrade-btn:hover:not(:disabled) { border-color: var(--accent-blue); background: #242936; transform: translateY(-2px); }
+  .upgrade-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+  .up-name { font-weight: 700; font-size: 1rem; color: #f1f5f9; }
+  .up-desc { font-size: 0.8rem; color: var(--text-muted); line-height: 1.3; }
+  .up-cost { font-size: 0.95rem; color: var(--accent-amber); font-weight: 700; margin-top: 6px; display: flex; align-items: center; gap: 4px; }
   
-  .생산라인구역 { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
-  .라인트랙 { background: #141416; height: 12px; border-radius: 6px; overflow: hidden; position: relative; }
-  .라인게이지 { background: linear-gradient(90deg, #3b82f6, #10b981); height: 100%; width: 0%; transition: width 0.05s linear; }
+  .line-container { display: flex; flex-direction: column; gap: 12px; margin-top: 6px; }
+  .line-track { background: #0b0d10; height: 16px; border-radius: 8px; overflow: hidden; position: relative; border: 1px solid #1e222b; }
+  .line-bar { background: linear-gradient(90deg, #00f0ff, #00ff66); height: 100%; width: 0%; box-shadow: 0 0 12px rgba(0,240,255,0.4); }
   
-  .AI비서패널 { width: 360px; background: #16161a; display: flex; flex-direction: column; }
-  .AI헤더 { padding: 15px 20px; border-bottom: 1px solid var(--panel-border); font-weight: 600; display: flex; align-items: center; gap: 8px; color: var(--accent-blue); }
-  .채팅창 { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
-  .말풍선 { max-width: 85%; padding: 10px 14px; border-radius: 8px; font-size: 0.9rem; line-height: 1.4; word-break: break-all; }
-  .말풍선.유저 { background: var(--accent-blue); color: #fff; align-self: flex-end; border-bottom-right-radius: 2px; }
-  .말풍선.ai { background: var(--panel-bg); border: 1px solid var(--panel-border); color: var(--text-main); align-self: flex-start; border-bottom-left-radius: 2px; }
-  .말풍선.시스템 { background: #27272a; color: var(--text-muted); align-self: center; font-size: 0.8rem; border-radius: 4px; text-align: center; max-width: 100%; }
+  .ai-panel { width: 380px; background: #111318; display: flex; flex-direction: column; border-left: 1px solid var(--panel-border); }
+  .ai-header { padding: 20px; border-bottom: 1px solid var(--panel-border); font-weight: 700; font-size: 1.05rem; display: flex; align-items: center; gap: 10px; color: var(--accent-blue); background: var(--panel-bg); }
+  .chat-box { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; background: #0b0d10; }
+  .msg { max-width: 85%; padding: 12px 16px; border-radius: 12px; font-size: 0.9rem; line-height: 1.45; word-break: break-all; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+  .msg.user { background: #2563eb; color: #fff; align-self: flex-end; border-bottom-right-radius: 2px; }
+  .msg.ai { background: var(--panel-bg); border: 1px solid var(--panel-border); color: var(--text-main); align-self: flex-start; border-bottom-left-radius: 2px; }
+  .msg.system { background: #1e293b; color: #94a3b8; align-self: center; font-size: 0.8rem; border-radius: 6px; text-align: center; max-width: 100%; border: 1px solid #334155; }
   
-  .입력구역 { padding: 12px; border-top: 1px solid var(--panel-border); display: flex; gap: 8px; background: var(--panel-bg); }
-  .입력창 { flex: 1; background: #141416; border: 1px solid var(--panel-border); border-radius: 4px; padding: 8px 12px; color: #fff; font-size: 0.9rem; }
-  .입력창:focus { outline: none; border-color: var(--accent-blue); }
-  .전송버튼 { background: var(--accent-blue); color: #fff; border: none; padding: 0 16px; border-radius: 4px; cursor: pointer; font-weight: 600; }
-  .전송버튼:disabled { opacity: 0.5; }
+  .input-area { padding: 16px; border-top: 1px solid var(--panel-border); display: flex; gap: 10px; background: var(--panel-bg); }
+  .chat-input { flex: 1; background: #0b0d10; border: 1px solid var(--panel-border); border-radius: 6px; padding: 12px 16px; color: #fff; font-size: 0.9rem; transition: border-0.2s; }
+  .chat-input:focus { outline: none; border-color: var(--accent-blue); }
+  .send-btn { background: #2563eb; color: #fff; border: none; padding: 0 20px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: background 0.2s; }
+  .send-btn:hover:not(:disabled) { background: #1d4ed8; }
+  .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   
-  /* 모달 팝업 스타일 */
-  .모달배경 {
+  .modal-overlay {
     position: fixed; top:0; left:0; width:100%; height:100%;
-    background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 999;
+    background: rgba(5,5,8,0.85); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 999;
   }
-  .모달창 {
+  .modal-box {
     background: var(--panel-bg); border: 1px solid var(--panel-border);
-    padding: 30px; border-radius: 8px; width: 340px; display: flex; flex-direction: column; gap: 15px;
+    padding: 32px; border-radius: 14px; width: 360px; display: flex; flex-direction: column; gap: 18px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5);
   }
-  .모달창 h2 { font-size: 1.2rem; text-align: center; color: var(--accent-blue); }
-  .모달입력 { background: #141416; border: 1px solid var(--panel-border); padding: 10px; color:#fff; border-radius:4px; }
-  .모달버튼묶음 { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
-  .숨김 { display: none !important; }
+  .modal-box h2 { font-size: 1.25rem; font-weight: 800; text-align: center; color: var(--accent-blue); letter-spacing: 0.5px; }
+  .modal-input { background: #0b0d10; border: 1px solid var(--panel-border); padding: 12px; color:#fff; border-radius:6px; font-size: 0.9rem; }
+  .modal-input:focus { outline:none; border-color:var(--accent-blue); }
+  .modal-btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+  .modal-btn-group .auth-btn { padding: 12px; font-size: 0.95rem; }
+  .hidden { display: none !important; }
 </style>
 </head>
 <body>
 
-  <div id="인증모달" class="모달배경">
-    <div class="모달창">
-      <h2 id="모달제목">스마트 공장 로그인</h2>
-      <input type="email" id="인증-이메일" class="모달입력" placeholder="이메일 주소"/>
-      <input type="password" id="인증-비번" class="모달입력" placeholder="비밀번호"/>
-      <div class="모달버튼묶음">
-        <button id="이메일로그인버튼" class="인증버튼">로그인</button>
-        <button id="회원가입버튼" class="인증버튼" style="background:#4b5563;">신규 계정 가입</button>
+  <div id="login-modal" class="modal-overlay">
+    <div class="modal-box">
+      <h2 id="modal-title">스마트 공장 제어인증</h2>
+      <input type="email" id="login-email" class="modal-input" placeholder="관리자 이메일 계정"/>
+      <input type="password" id="login-pass" class="modal-input" placeholder="액세스 비밀번호"/>
+      <div class="modal-btn-group">
+        <button id="btn-email-login" class="auth-btn" style="background:#2563eb; border-color:#3b82f6;">시스템 로그인</button>
+        <button id="btn-register" class="auth-btn">신규 관리자 등록</button>
       </div>
     </div>
   </div>
 
   <header>
-    <h1>⚙️ FACTORY SYSTEM V2</h1>
-    <div class="유저정보구역">
-      <span id="유저라벨" style="font-size:0.85rem; color:var(--text-muted);">로그인이 필요합니다.</span>
-      <button id="상단로그아웃버튼" class="인증버튼 로그아웃 숨김">로그아웃</button>
-      <button id="서버저장버튼" class="인증버튼 숨김" style="background:var(--accent-green);">서버 저장</button>
+    <h1>⚙️ SMART FACTORY OS v2.4</h1>
+    <div class="user-zone">
+      <span id="user-label" style="font-size:0.85rem; color:var(--text-muted); font-weight:600;">인증 대기 중...</span>
+      <button id="btn-logout" class="auth-btn logout hidden">로그아웃</button>
+      <button id="btn-save" class="auth-btn hidden" style="background:#16a34a; border-color:#22c55e;">서버 데이터 저장</button>
     </div>
   </header>
 
-  <div class="메인컨테이너">
-    <div class="게임패널">
-      <div class="HUD">
-        <div class="HUD항목">
-          <div class="HUD라벨">Operating Capital</div>
-          <div id="HUD-자금" class="HUD값 자금">0 ₩</div>
+  <div class="main-container">
+    <div class="game-panel">
+      <div class="hud-bar">
+        <div class="hud-item money-item">
+          <div class="hud-label">Operating Capital</div>
+          <div id="hud-money" class="hud-val money">0 ₩</div>
         </div>
-        <div class="HUD항목">
-          <div class="HUD라벨">Factory Stage</div>
-          <div id="HUD-스테이지" class="HUD값">1 단계</div>
+        <div class="hud-item stage-item">
+          <div class="hud-label">Factory Stage</div>
+          <div id="hud-stage" class="hud-val">1 단계</div>
         </div>
-        <div class="HUD항목">
-          <div class="HUD라벨">Motor Level</div>
-          <div id="HUD-모터레벨" class="HUD값">Lv.1</div>
+        <div class="hud-item">
+          <div class="hud-label">Motor Hardware</div>
+          <div id="hud-motor-lv" class="hud-val">Lv.1</div>
         </div>
-        <div class="HUD항목">
-          <div class="HUD라벨">Line Level</div>
-          <div id="HUD-라인레벨" class="HUD값">Lv.1</div>
-        </div>
-      </div>
-
-      <div class="컨텐츠구역">
-        <div class="컨트롤카드">
-          <div class="카드제목">
-            <span>자동 생산 공정 관리</span>
-            <span id="생산효율지표" style="font-size:0.85rem; color:var(--accent-green);">효율: +100/s</span>
-          </div>
-          <div class="생산라인구역">
-            <div class="라인트랙"><div id="라인게이지" class="라인게이지"></div></div>
-          </div>
-        </div>
-
-        <div class="컨트롤카드">
-          <div class="카드제목">생산 하드웨어 증설 및 고도화</div>
-          <div class="업그레이드그리드">
-            <button id="btn-모터" class="강화버튼">
-              <span class="강화이름">고속 서보 모터 업그레이드</span>
-              <span class="강화설명">생산 진행 속도가 상시 상승합니다.</span>
-              <span id="cost-모터" class="강화비용">1,000 ₩</span>
-            </button>
-            <button id="btn-라인" class="강화버튼">
-              <span class="강화이름">컨베이어 라인 확장</span>
-              <span class="강화설명">정기 생산 시 획득하는 자금이 증가합니다.</span>
-              <span id="cost-라인" class="강화비용">1,500 ₩</span>
-            </button>
-          </div>
-        </div>
-        
-        <div class="컨트롤카드" style="margin-top: auto;">
-          <div class="카드제목" style="margin-bottom:0; font-size:0.85rem; color:var(--text-muted);">
-            <span>* 서버 저장 기능은 로그인 후 활성화됩니다.</span>
-          </div>
+        <div class="hud-item">
+          <div class="hud-label">Conveyor Line</div>
+          <div id="hud-line-lv" class="hud-val">Lv.1</div>
         </div>
       </div>
-    </div>
 
-    <div class="AI비서패널">
-      <div class="AI헤더">🤖 스마트 AI 제어 센터</div>
-      <div id="채팅창" class="채팅창">
-        <div class="말풍선 시스템">시스템이 온라인 상태입니다. 질문을 입력하십시오.</div>
-      </div>
-      <div class="입력구역">
-        <input type="text" id="입력창" class="입력창" placeholder="AI 시스템에게 지시 입력..."/>
-        <button id="전송버튼" class="전송버튼">전송</button>
-      </div>
-    </div>
-  </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  /* ───────────────────────────────────────────
-     게임 핵심 변수 및 상태
-  ─────────────────────────────────────────── */
-  const 게임 = {
-    자금: 0,
-    스테이지: 1,
-    모터레벨: 1,
-    라인레벨: 1,
-    생산진행도: 0
-  };
-
-  let 로그인유저 = null;
-
-  // DOM 캐싱
-  const HUD자금 = document.getElementById('HUD-자금');
-  const HUD스테이지 = document.getElementById('HUD-스테이지');
-  const HUD모터레벨 = document.getElementById('HUD-모터레벨');
-  const HUD라인레벨 = document.getElementById('HUD-라인레벨');
-  const 생산효율지표 = document.getElementById('생산효율지표');
-  const 라인게이지 = document.getElementById('라인게이지');
-  
-  const btn모터 = document.getElementById('btn-모터');
-  const btn라인 = document.getElementById('btn-라인');
-  const cost모터 = document.getElementById('cost-모터');
-  const cost라인 = document.getElementById('cost-라인');
-
-  const 인증모달 = document.getElementById('인증모달');
-  const 인증이메일 = document.getElementById('인증-이메일');
-  const 인증비번 = document.getElementById('인증-비번');
-  const 이메일로그인버튼 = document.getElementById('이메일로그인버튼');
-  const 회원가입버튼 = document.getElementById('회원가입버튼');
-  
-  const 유저라벨 = document.getElementById('유저라벨');
-  const 상단로그아웃버튼 = document.getElementById('상단로그아웃버튼');
-  const 서버저장버튼 = document.getElementById('서버저장버튼');
-
-  const 채팅창 = document.getElementById('채팅창');
-  const 입력창 = document.getElementById('입력창');
-  const 전송버튼 = document.getElementById('전송버튼');
-
-  function 포맷(v) { return Math.floor(v).toLocaleString() + ' ₩'; }
-
-  /* ───────────────────────────────────────────
-     파이어베이스 계정 및 데이터 연동 로직
-  ─────────────────────────────────────────── */
-  const 인터벌 = setInterval(() => {
-    if (window.__FB) {
-      clearInterval(인터벌);
-      FB연동시작();
-    }
-  }, 100);
-
-  function FB연동시작() {
-    const { auth, onAuthStateChanged } = window.__FB;
-
-    onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        로그인유저 = user;
-        유저라벨.innerText = user.email + " (접속됨)";
-        인증모달.classList.add('숨김');
-        상단로그아웃버튼.classList.remove('숨김');
-        서버저장버튼.classList.remove('숨김');
-        await 데이터불러오기();
-      } else {
-        로그인유저 = null;
-        유저라벨.innerText = "로그인이 필요합니다.";
-        인증모달.classList.remove('숨김');
-        상단로그아웃버튼.classList.add('숨김');
-        서버저장버튼.classList.add('숨김');
-      }
-    });
-  }
-
-  // 회원가입 트리거
-  회원가입버튼.addEventListener('click', async () => {
-    const email = 인증이메일.value.trim();
-    const password = 인증비번.value.trim();
-    if(!email || !password) return alert('정보를 입력하세요.');
-    
-    try {
-      const { auth, createUserWithEmailAndPassword } = window.__FB;
-      await createUserWithEmailAndPassword(auth, email, password);
-      alert('공장 관리자 등록 완료! 자동 로그인됩니다.');
-    } catch(e) {
-      alert('등록 실패: ' + e.message);
-    }
-  });
-
-  // 로그인 트리거
-  이메일로그인버튼.addEventListener('click', async () => {
-    const email = 인증이메일.value.trim();
-    const password = 인증비번.value.trim();
-    if(!email || !password) return alert('정보를 입력하세요.');
-
-    try {
-      const { auth, signInWithEmailAndPassword } = window.__FB;
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch(e) {
-      alert('로그인 실패: ' + e.message);
-    }
-  });
-
-  // 로그아웃 트리거
-  상단로그아웃버튼.addEventListener('click', () => {
-    const { auth, signOut } = window.__FB;
-    signOut(auth).then(() => { alert('시스템 로그아웃 완료.'); location.reload(); });
-  });
-
-  // 🌟 [안전화 완료] 서버 저장 로직 (데이터 누락 및 setDoc 에러 완벽 해결)
-  async function 서버저장() {
-    if (!로그인유저) { alert("로그인이 필요합니다."); return; }
-    try {
-      const { db, doc, setDoc } = window.__FB;
-      const userDocRef = doc(db, "users", 로그인유저.uid);
-
-      // 데이터가 undefined 상태여서 파이어베이스 규칙을 깨뜨리는 현상을 방지합니다.
-      const 데이터보내기 = {
-        게임데이터: {
-          자금: typeof 게임.자금 !== 'undefined' ? 게임.자금 : 0,
-          스테이지: typeof 게임.스테이지 !== 'undefined' ? 게임.스테이지 : 1,
-          모터레벨: typeof 게임.모터레벨 !== 'undefined' ? 게임.모터레벨 : 1,
-          라인레벨: typeof 게임.라인레벨 !== 'undefined' ? 게임.라인레벨 : 1,
-          저장시간: new Date().toISOString()
-        }
-      };
-
-      await setDoc(userDocRef, 데이터보내기, { merge: true });
-      alert("성공적으로 서버에 저장되었습니다!");
-    } catch (e) {
-      console.error("저장 오류:", e);
-      alert("서버 저장 실패: " + e.message);
-    }
-  }
-  서버저장버튼.addEventListener('click', 서버저장);
-
-  // 데이터 불러오기 로직
-  async function 데이터불러오기() {
-    try {
-      const { db, doc, getDoc } = window.__FB;
-      const userDocRef = doc(db, "users", 로그인유저.uid);
-      const snapshot = await getDoc(userDocRef);
-      
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        if (data && data.게임데이터) {
-          게임.자금 = data.게임데이터.자금 || 0;
-          게임.스테이지 = data.게임데이터.스테이지 || 1;
-          게임.모터레벨 = data.게임데이터.모터레벨 || 1;
-          게임.라인레벨 = data.게임데이터.라인레벨 || 1;
-          HUD갱신();
-          메시지추가("[시스템] 이전 공장 가동 데이터를 동기화했습니다.", "시스템");
-        }
-      }
-    } catch(e) {
-      console.error("동기화 실패:", e);
-    }
-  }
-
-  /* ───────────────────────────────────────────
-     타이쿤 게임 플레이 핵심 엔진 메커니즘
-  ─────────────────────────────────────────── */
-  function HUD갱신() {
-    HUD자금.innerText = 포맷(게임.자금);
-    HUD스테이지.innerText = 게임.스테이지 + ' 단계';
-    HUD모터레벨.innerText = 'Lv.' + 게임.모터레벨;
-    HUD라인레벨.innerText = 'Lv.' + 게임.라인레벨;
-
-    const 주기당수익 = 게임.라인레벨 * 150 * 게임.스테이지;
-    생산효율지표.innerText = `생산당 수익: +${주기당수익.toLocaleString()} ₩`;
-
-    const 모터비용 = 게임.모터레벨 * 1000 * 게임.스테이지;
-    const 라인비용 = 게임.라인레벨 * 1500 * 게임.스테이지;
-
-    cost모터.innerText = 포맷(모터비용);
-    cost라인.innerText = 포맷(라인비용);
-
-    btn모터.disabled = (게임.자금 < 모터비용);
-    btn라인.disabled = (게임.자금 < 라인비용);
-  }
-
-  // 하드웨어 강화 상호작용
-  btn모터.addEventListener('click', () => {
-    const 비용 = 게임.모터레벨 * 1000 * 게임.스테이지;
-    if (게임.자금 >= 비용) {
-      게임.자금 -= 비용;
-      게임.모터레벨++;
-      if (게임.모터레벨 >= 5 && 게임.스테이지 === 1) { 게임.스테이지 = 2; 메시지추가("⚙️ [공장 확장] 2단계 공장으로 격상되었습니다!", "시스템"); }
-      HUD갱신();
-    }
-  });
-
-  btn라인.addEventListener('click', () => {
-    const 비용 = 게임.라인레벨 * 1500 * 게임.스테이지;
-    if (게임.자금 >= 비용) {
-      게임.자금 -= 비용;
-      게임.라인레벨++;
-      HUD갱신();
-    }
-  });
-
-  // 주기적 자동 생산 연산 틱 루프
-  let 이전시간 = performance.now();
-  function 루프(현재시간) {
-    const DeltaTime = (현재시간 - 이전시간) / 1000;
-    이전시간 = 현재시간;
-
-    const 모터속도계수 = 15 + (게임.모터레벨 * 5); 
-    게임.생산진행도 += 모터속도계수 * DeltaTime;
-
-    if (게임.생산진행도 >= 100) {
-      게임.생산진행도 = 0;
-      const 수익 = 게임.라인레벨 * 150 * 게임.스테이지;
-      게임.자금 += 수익;
-      HUD갱신();
-    }
-
-    라인게이지.style.width = 게임.생산진행도 + '%';
-    requestAnimationFrame(루프);
-  }
-  requestAnimationFrame(루프);
-
-  /* ───────────────────────────────────────────
-     AI 비서 — Apps Script 최종 연동 (수정 완료)
-  ─────────────────────────────────────────── */
-  function 메시지추가(내용, 종류) {
-    const div = document.createElement('div');
-    div.classList.add('말풍선', 종류);
-    div.innerText = 내용;
-    채팅창.appendChild(div);
-    채팅창.scrollTop = 채팅창.scrollHeight;
-  }
-
-  async function GPT전송(){
-    const q = 입력창.value.trim(); if(!q) return;
-    
-    입력창.value = ''; 전송버튼.disabled = true;
-    메시지추가(q, '유저');
-    메시지추가('[ 분석 중... ]', '시스템');
-
-    const 시스템 = '당신은 스마트 공장의 AI 제어 시스템입니다. '
-      + '모든 답변은 차갑고 전문적이며 기계적인 어조로 작성하세요. '
-      + '이모지는 기계/공장 관련(⚙️🏭🤖📊)만 허용됩니다. '
-      + `현재 공장 상태: ${게임.스테이지}단계, 보유 자금 ${포맷(게임.자금)}, `
-      + `모터 레벨 ${게임.모터레벨}, 라인 레벨 ${게임.라인레벨}. `
-      + '답변은 3~5문장, 반드시 한국어로.';
-
-    try {
-      // 🔗 보내주신 최신 Google Apps Script 웹앱 URL을 완벽하게 적용했습니다!
-      const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw4Ecg2fN3JTlFoKsenyhBq_pqwksRd3z90RE-WXMCfHQ1FnKErNwGxCkBC8xwSy2Il/exec';
-
-      const res = await fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        body: JSON.stringify({ prompt: 시스템 + '\n\n질문: ' + q })
-      });
-
-      const data = await res.json();
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      const txt = data.answer || '[응답 없음]';
-      
-      채팅창.querySelectorAll('.메시지-시스템').forEach((el,i,arr)=>{ if(i===arr.length-1) el.remove(); });
-      메시지추가(txt, 'ai');
-    } catch(e) {
-      채팅창.querySelectorAll('.메시지-시스템').forEach((el,i,arr)=>{ if(i===arr.length-1) el.remove(); });
-      메시지추가('[연결 오류] ' + e.message + ' — 네트워크 또는 Apps Script 설정을 확인하십시오.', 'ai');
-    } finally {
-      전송버튼.disabled = false;
-    }
-  }
-
-  전송버튼.addEventListener('click', GPT전송);
-  입력창.addEventListener('keydown', e => { if(e.key === 'Enter') GPT전송(); });
-
-  // 엔터키 로그인 보조 편의성 기능
-  ['인증-이메일','인증-비번'].forEach(id => {
-    const el = document.getElementById(id);
-    if(el) el.addEventListener('keydown', e => {
-      if(e.key === 'Enter') 이메일로그인버튼.click();
-    });
-  });
-
-  setInterval(HUD갱신, 1000);
-});
-</script>
-</body>
-</html>
+      <div class="content-area">
+        <div class="control-card">
+          <div class="card-title">
+            <span>자동 생산 프로세스 실시간 모니터링</span>
+            <span id="efficiency-spec" style="font-size:0.85rem; color:var(--accent-green); font-weight:600;">수익률 계산 중...</span>
+          </div>
+          <div class="line-container">
+            <div class="line-track"><div id="line-bar" class="line-bar"></div></div>
+          </div>
