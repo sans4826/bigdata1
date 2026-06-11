@@ -5,16 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <title>방치형 스마트 공장 타이쿤</title>
 
+<!-- Firebase -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import {
-    getAuth, signOut,
+    getAuth, GoogleAuthProvider, signInWithPopup, signOut,
     onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import { getFirestore, doc, setDoc, getDoc }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  // Firebase 설정
   const firebaseConfig = {
     apiKey: "AIzaSyBH3MnIsDLamBCogW27DT-4schLxKnBMys",
     authDomain: "bigdata00-db9de.firebaseapp.com",
@@ -24,178 +24,1312 @@
     appId: "1:274979879514:web:b1cc5584cae51ba7677663"
   };
 
-  const app = initializeApp(firebaseConfig);
+  const app  = initializeApp(firebaseConfig);
   const auth = getAuth(app);
-  const db = getFirestore(app);
+  const db   = getFirestore(app);
 
-  // 전역 연동
-  window.__FB = { 
-    auth, db, signOut, onAuthStateChanged, 
-    createUserWithEmailAndPassword, signInWithEmailAndPassword, 
-    doc, setDoc, getDoc 
+  window.__FB = {
+    auth, db,
+    GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged,
+    createUserWithEmailAndPassword, signInWithEmailAndPassword,
+    doc, setDoc, getDoc
   };
 </script>
 
 <style>
-  :root {
-    --bg-dark: #0f1115;
-    --panel-bg: #161920;
-    --panel-border: #242936;
-    --accent-blue: #00f0ff;
-    --accent-green: #00ff66;
-    --accent-amber: #ffaa00;
-    --text-main: #e2e8f0;
-    --text-muted: #64748b;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
-  body {
-    background-color: var(--bg-dark);
-    color: var(--text-main);
-    display: flex;
+/* ══════════════════════════════════════
+   디자인 토큰
+══════════════════════════════════════ */
+:root {
+  /* 배경 */
+  --bg-void:   #080b10;
+  --bg-deep:   #0d1117;
+  --bg-panel:  #111827;
+  --bg-card:   #161d2b;
+  --bg-raised: #1c2638;
+
+  /* 테두리 */
+  --border-dim:    rgba(255,255,255,.06);
+  --border-subtle: rgba(255,255,255,.10);
+  --border-vivid:  rgba(0,220,180,.35);
+
+  /* 브랜드 색상 — 사이버틱 틸/오렌지 대비 */
+  --teal:     #00dcb4;
+  --teal-dim: rgba(0,220,180,.15);
+  --teal-glow:rgba(0,220,180,.25);
+  --amber:    #f59e0b;
+  --amber-dim:rgba(245,158,11,.15);
+  --red:      #f43f5e;
+  --red-dim:  rgba(244,63,94,.15);
+  --blue:     #60a5fa;
+  --violet:   #a78bfa;
+
+  /* 텍스트 */
+  --text-hi:   #f0f4ff;
+  --text-mid:  #94a3b8;
+  --text-lo:   #475569;
+
+  /* 폰트 */
+  --font: 'Segoe UI','Apple SD Gothic Neo','맑은 고딕',system-ui,sans-serif;
+
+  /* 벨트 높이 */
+  --belt-h: 110px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box; margin: 0; padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none; -webkit-user-select: none;
+}
+html, body {
+  height: 100%; background: var(--bg-void);
+  color: var(--text-hi); font-family: var(--font);
+  overflow-x: hidden;
+}
+input, textarea { user-select: text; -webkit-user-select: text; }
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--bg-deep); }
+::-webkit-scrollbar-thumb { background: var(--teal); border-radius: 2px; }
+
+/* ══════════════════════════════════════
+   로그인 오버레이
+══════════════════════════════════════ */
+#overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: var(--bg-void);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 28px; padding: 20px;
+}
+
+.logo-wrap { text-align: center; }
+.logo-wrap h1 {
+  font-size: clamp(1.4rem, 5vw, 2.4rem);
+  font-weight: 900; letter-spacing: 2px;
+  color: var(--teal);
+  text-shadow: 0 0 24px var(--teal-glow), 0 0 60px rgba(0,220,180,.1);
+  line-height: 1.25;
+}
+.logo-sub {
+  font-size: .72rem; color: var(--text-lo);
+  letter-spacing: 4px; margin-top: 6px;
+  text-transform: uppercase;
+}
+.scan-line {
+  width: min(360px, 88vw); height: 2px;
+  background: linear-gradient(90deg, transparent, var(--teal), transparent);
+  animation: scan-anim 2.4s linear infinite;
+}
+@keyframes scan-anim {
+  0%   { opacity: 0; transform: scaleX(0.2); }
+  50%  { opacity: 1; transform: scaleX(1); }
+  100% { opacity: 0; transform: scaleX(0.2); }
+}
+
+/* 로그인 박스 */
+#auth-box {
+  width: min(380px, 94vw);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0,0,0,.6), 0 0 0 1px var(--border-dim);
+}
+.tab-row { display: flex; border-bottom: 1px solid var(--border-dim); }
+.tab-btn {
+  flex: 1; padding: 13px 0; background: none; border: none;
+  font-family: var(--font); font-size: .8rem; font-weight: 700;
+  color: var(--text-lo); cursor: pointer;
+  letter-spacing: 1px; transition: all .2s;
+  border-bottom: 2px solid transparent; position: relative; bottom: -1px;
+}
+.tab-btn.on { color: var(--teal); border-bottom-color: var(--teal); background: var(--teal-dim); }
+.tab-pane { display: none; padding: 22px 20px; flex-direction: column; gap: 13px; }
+.tab-pane.on { display: flex; }
+
+.field-label { font-size: .67rem; color: var(--text-lo); letter-spacing: 1px; margin-bottom: 3px; text-transform: uppercase; }
+.field {
+  width: 100%; background: var(--bg-deep);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px; padding: 11px 14px;
+  color: var(--text-hi); font-family: var(--font); font-size: .88rem;
+  outline: none; transition: border-color .2s, box-shadow .2s;
+}
+.field:focus { border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-dim); }
+.err-msg { font-size: .71rem; color: var(--red); min-height: 16px; }
+
+.btn-row { display: flex; gap: 8px; margin-top: 4px; }
+.btn-primary {
+  flex: 1; padding: 11px; border: none; border-radius: 8px;
+  background: var(--teal); color: #000;
+  font-family: var(--font); font-size: .88rem; font-weight: 800;
+  cursor: pointer; letter-spacing: .5px; transition: all .2s;
+}
+.btn-primary:hover { box-shadow: 0 0 18px var(--teal-glow); transform: translateY(-1px); }
+.btn-outline {
+  flex: 1; padding: 11px; border: 1.5px solid var(--teal);
+  border-radius: 8px; background: transparent; color: var(--teal);
+  font-family: var(--font); font-size: .88rem; font-weight: 700;
+  cursor: pointer; transition: all .2s;
+}
+.btn-outline:hover { background: var(--teal-dim); }
+
+.divider { display: flex; align-items: center; gap: 10px; }
+.divider::before, .divider::after { content:''; flex:1; height:1px; background: var(--border-dim); }
+.divider span { font-size: .67rem; color: var(--text-lo); }
+
+.btn-google {
+  width: 100%; padding: 11px; border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-raised); color: var(--text-hi);
+  font-family: var(--font); font-size: .85rem; font-weight: 600;
+  cursor: pointer; transition: all .2s;
+  display: flex; align-items: center; justify-content: center; gap: 9px;
+}
+.btn-google:hover { border-color: var(--teal); background: var(--bg-card); }
+.btn-guest {
+  width: 100%; padding: 8px; background: none; border: none;
+  font-family: var(--font); font-size: .75rem; color: var(--text-lo);
+  cursor: pointer; transition: color .2s; letter-spacing: .5px;
+}
+.btn-guest:hover { color: var(--text-mid); }
+
+/* ══════════════════════════════════════
+   HUD 상단바
+══════════════════════════════════════ */
+#hud {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
+  padding: 10px 16px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-dim);
+  position: sticky; top: 0; z-index: 200;
+}
+.hud-chip {
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 6px 12px; border-radius: 8px;
+  background: var(--bg-card); border: 1px solid var(--border-dim);
+}
+.hud-label { font-size: .58rem; color: var(--text-lo); letter-spacing: 1px; text-transform: uppercase; }
+.hud-val { font-size: .98rem; font-weight: 800; line-height: 1.1; }
+.hud-val.money  { color: var(--amber); }
+.hud-val.stage  { color: var(--teal); }
+.hud-val.cps    { color: #34d399; }
+
+.hud-spacer { flex: 1; }
+.hud-right  { display: flex; align-items: center; gap: 8px; }
+
+#user-label {
+  font-size: .7rem; color: var(--text-lo);
+  max-width: 130px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+#user-label span { color: var(--teal); }
+
+.hud-btn {
+  padding: 7px 13px; border-radius: 7px; border: none;
+  font-family: var(--font); font-size: .75rem; font-weight: 700;
+  cursor: pointer; transition: all .2s; white-space: nowrap;
+}
+.hud-btn.save  { background: var(--teal); color: #000; }
+.hud-btn.save:hover  { box-shadow: 0 0 14px var(--teal-glow); }
+.hud-btn.logout { background: transparent; color: var(--red); border: 1px solid var(--red-dim); }
+.hud-btn.logout:hover { background: var(--red-dim); }
+
+/* TTS 토글 */
+.tts-toggle {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px; border-radius: 7px;
+  background: var(--bg-card); border: 1px solid var(--border-dim);
+  cursor: pointer; transition: all .2s; font-size: .72rem; color: var(--text-lo);
+}
+.tts-toggle.on  { border-color: var(--teal-glow); color: var(--teal); }
+.tts-dot { width:7px; height:7px; border-radius:50%; background:var(--text-lo); }
+.tts-toggle.on .tts-dot { background:var(--teal); box-shadow:0 0 6px var(--teal); }
+
+/* ══════════════════════════════════════
+   컨베이어 벨트 공장
+══════════════════════════════════════ */
+#factory {
+  position: relative; width: 100%; height: var(--belt-h);
+  overflow: hidden;
+  background: linear-gradient(180deg, #0a0e14 0%, #0f1520 50%, #0a0e14 100%);
+  border-bottom: 1px solid var(--border-dim);
+  cursor: crosshair;
+}
+.belt-track {
+  position: absolute; left: 0; right: 0; bottom: 10px; height: 20px;
+  background: repeating-linear-gradient(90deg,
+    #1a2030 0, #1a2030 28px, #222b3a 28px, #222b3a 56px);
+  border-top: 1.5px solid #2a3548; border-bottom: 1.5px solid #111;
+  animation: belt-move 1.4s linear infinite;
+}
+@keyframes belt-move { to { background-position: 56px 0; } }
+
+#factory::before, #factory::after {
+  content: ''; position: absolute; top: 0; bottom: 0; width: 60px; z-index: 3; pointer-events: none;
+}
+#factory::before { left: 0; background: linear-gradient(90deg, var(--bg-deep), transparent); }
+#factory::after  { right: 0; background: linear-gradient(-90deg, var(--bg-deep), transparent); }
+
+#scan-text {
+  position: absolute; top: 7px; left: 60px;
+  font-size: .53rem; color: rgba(0,220,180,.28);
+  letter-spacing: 1.5px; pointer-events: none; line-height: 2;
+}
+
+/* 로봇팔 */
+#robot-arm {
+  position: absolute; right: 40px; top: 0; bottom: 0; width: 48px;
+  z-index: 4; display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+#arm-body {
+  width: 13px; height: 50px;
+  background: linear-gradient(180deg, #3a4560, #222b3a);
+  border: 1px solid #444d62; border-radius: 2px;
+  position: relative; transform-origin: 50% 0;
+}
+#arm-claw {
+  position: absolute; bottom: -13px; left: 50%; transform: translateX(-50%);
+  width: 19px; height: 13px; border: 2px solid var(--text-lo); border-radius: 2px;
+}
+#arm-locked {
+  position: absolute; inset: 0; display: flex;
+  align-items: center; justify-content: center;
+  flex-direction: column; gap: 3px;
+}
+#arm-locked .lock-icon { font-size: 1.3rem; }
+#arm-locked .lock-txt  { font-size: .48rem; color: var(--amber); letter-spacing: 1px; }
+#arm-base { width: 34px; height: 10px; background: #2a3040; border-radius: 2px; border: 1px solid #3a4060; }
+
+/* 박스 아이템 */
+.box-item {
+  position: absolute; bottom: 30px; z-index: 5;
+  width: 36px; height: 36px; border-radius: 5px;
+  display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
+  cursor: pointer; border: 1.5px solid rgba(255,255,255,.12);
+  box-shadow: 0 3px 12px rgba(0,0,0,.5);
+  animation: box-bob .7s ease-in-out infinite alternate;
+}
+.box-item:active { transform: scale(.88); }
+@keyframes box-bob { from { transform: translateY(0); } to { transform: translateY(-4px); } }
+.box-normal   { background: linear-gradient(135deg, #2d3a5e, #1a2240); }
+.box-electric { background: linear-gradient(135deg, #1a5f8a, #0d3860); border-color: rgba(0,150,255,.4); }
+.box-premium  { background: linear-gradient(135deg, #6b3a00, #3d2000); border-color: rgba(245,158,11,.4); }
+.box-quantum  { background: linear-gradient(135deg, #4a1070, #280540); border-color: rgba(167,139,250,.5); }
+
+/* 플로팅 수익 */
+.float-txt {
+  position: fixed; z-index: 999; pointer-events: none;
+  font-size: .9rem; font-weight: 800; color: var(--amber);
+  text-shadow: 0 0 10px var(--amber);
+  animation: float-up 1.1s ease-out forwards;
+}
+@keyframes float-up {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  70%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-65px) scale(1.25); }
+}
+
+/* ══════════════════════════════════════
+   메인 레이아웃 (데스크탑: 좌우 분할)
+══════════════════════════════════════ */
+#main-wrap {
+  display: flex;
+  height: calc(100vh - var(--belt-h) - 57px); /* HUD height approx */
+  overflow: hidden;
+}
+
+/* 왼쪽: 게임 패널 */
+#game-panel {
+  flex: 1; overflow-y: auto; padding: 18px;
+  display: flex; flex-direction: column; gap: 16px;
+  min-width: 0;
+}
+
+/* 스테이지 카드 */
+.stage-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-dim);
+  border-radius: 12px; padding: 16px 18px;
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+.stage-info { flex: 1; min-width: 180px; }
+.stage-name { font-size: .95rem; font-weight: 800; color: var(--teal); letter-spacing: .5px; }
+.stage-desc { font-size: .73rem; color: var(--text-mid); margin-top: 4px; line-height: 1.5; }
+.stage-bar-wrap { flex: 1; min-width: 160px; }
+.bar-bg  { background: var(--bg-void); border-radius: 100px; height: 8px; overflow: hidden; border: 1px solid var(--border-dim); }
+.bar-fill { height: 100%; background: linear-gradient(90deg, var(--teal), #34d399); border-radius: 100px; transition: width .4s; }
+.bar-label { font-size: .62rem; color: var(--text-lo); margin-top: 4px; text-align: right; }
+.btn-stage {
+  padding: 9px 18px; border-radius: 8px;
+  border: 1.5px solid var(--teal); background: transparent;
+  color: var(--teal); font-family: var(--font);
+  font-size: .8rem; font-weight: 700; cursor: pointer;
+  transition: all .2s; white-space: nowrap;
+}
+.btn-stage:hover:not(:disabled) { background: var(--teal-dim); box-shadow: 0 0 14px var(--teal-glow); }
+.btn-stage:disabled { opacity: .3; cursor: not-allowed; }
+
+/* 상점 섹션 제목 */
+.section-title {
+  font-size: .67rem; font-weight: 700; letter-spacing: 3px;
+  color: var(--text-lo); text-transform: uppercase;
+  padding-bottom: 10px; border-bottom: 1px solid var(--border-dim);
+  display: flex; justify-content: space-between; align-items: center;
+}
+
+/* 업그레이드 그리드 */
+#shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+.shop-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  border-radius: 12px; padding: 16px;
+  display: flex; flex-direction: column; gap: 8px;
+  transition: border-color .2s, transform .2s;
+  position: relative; overflow: hidden;
+}
+.shop-card:hover { border-color: var(--border-subtle); transform: translateY(-2px); }
+.shop-card.locked { opacity: .45; }
+
+.card-badge {
+  position: absolute; top: 10px; right: 10px;
+  background: var(--amber-dim); color: var(--amber);
+  font-size: .58rem; font-weight: 700; padding: 2px 8px;
+  border-radius: 100px; border: 1px solid rgba(245,158,11,.3);
+}
+.card-icon { font-size: 1.7rem; line-height: 1; }
+.card-name { font-size: .88rem; font-weight: 700; color: var(--text-hi); }
+.card-desc { font-size: .71rem; color: var(--text-mid); line-height: 1.55; flex: 1; }
+.card-level { font-size: .61rem; color: var(--violet); letter-spacing: 1px; }
+.card-cost  { font-size: .85rem; color: var(--amber); font-weight: 700; }
+.card-buy {
+  padding: 9px; border-radius: 7px;
+  border: 1.5px solid var(--teal); background: transparent;
+  color: var(--teal); font-family: var(--font);
+  font-size: .78rem; font-weight: 700; cursor: pointer;
+  transition: all .2s; margin-top: 2px;
+}
+.card-buy:hover:not(:disabled) { background: var(--teal-dim); box-shadow: 0 0 10px var(--teal-glow); }
+.card-buy:disabled { opacity: .25; cursor: not-allowed; border-color: var(--border-dim); color: var(--text-lo); }
+.card-buy.maxed { border-color: var(--blue); color: var(--blue); cursor: default; }
+
+/* ══════════════════════════════════════
+   오른쪽: AI 채팅 패널
+══════════════════════════════════════ */
+#ai-panel {
+  width: 340px; min-width: 340px;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border-dim);
+  display: flex; flex-direction: column;
+}
+.ai-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-dim);
+  background: var(--bg-card);
+  display: flex; align-items: center; gap: 10px;
+}
+.ai-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--teal); box-shadow: 0 0 8px var(--teal);
+  animation: pulse 1.6s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+.ai-title  { font-size: .82rem; font-weight: 800; color: var(--teal); letter-spacing: 1px; flex: 1; }
+.ai-model  { font-size: .62rem; color: var(--text-lo); }
+
+#chat-box {
+  flex: 1; overflow-y: auto; padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+  scroll-behavior: smooth;
+  background: var(--bg-deep);
+}
+.msg {
+  max-width: 88%; padding: 10px 13px; border-radius: 10px;
+  font-size: .8rem; line-height: 1.6; word-break: break-word;
+  animation: msg-in .25s ease;
+}
+@keyframes msg-in { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+.msg-user   { align-self: flex-end; background: rgba(0,220,180,.12); border: 1px solid rgba(0,220,180,.25); color: var(--teal); border-bottom-right-radius: 2px; }
+.msg-ai     { align-self: flex-start; background: var(--bg-card); border: 1px solid var(--border-subtle); color: var(--text-hi); border-bottom-left-radius: 2px; }
+.msg-system { align-self: center; color: var(--text-lo); font-size: .7rem; font-style: italic; text-align: center; }
+
+/* 퀵 질문 버튼 */
+.quick-wrap {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border-dim);
+  display: flex; gap: 6px; flex-wrap: wrap;
+  background: var(--bg-panel);
+}
+.quick-btn {
+  padding: 5px 10px; border-radius: 100px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card); color: var(--text-mid);
+  font-size: .68rem; cursor: pointer; transition: all .2s;
+}
+.quick-btn:hover { border-color: var(--teal); color: var(--teal); }
+
+#input-row {
+  display: flex; gap: 8px; padding: 12px 14px;
+  border-top: 1px solid var(--border-dim);
+  background: var(--bg-card);
+}
+#chat-input {
+  flex: 1; background: var(--bg-deep);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px; padding: 10px 13px;
+  color: var(--text-hi); font-family: var(--font); font-size: .82rem;
+  outline: none; transition: border-color .2s;
+}
+#chat-input:focus { border-color: var(--teal); }
+#send-btn {
+  background: var(--teal); color: #000;
+  border: none; padding: 0 16px; border-radius: 8px;
+  font-family: var(--font); font-size: .82rem; font-weight: 800;
+  cursor: pointer; transition: all .2s; white-space: nowrap;
+}
+#send-btn:hover:not(:disabled) { box-shadow: 0 0 12px var(--teal-glow); }
+#send-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+/* ══════════════════════════════════════
+   토스트 알림
+══════════════════════════════════════ */
+#toast {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--bg-panel); border: 1px solid var(--teal);
+  padding: 10px 24px; border-radius: 10px;
+  font-size: .8rem; color: var(--teal); z-index: 900;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5), 0 0 0 1px var(--border-dim);
+  transition: opacity .35s, transform .35s;
+  pointer-events: none; opacity: 0; white-space: nowrap;
+  max-width: 90vw; text-align: center;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+#toast.green  { border-color: #34d399; color: #34d399; }
+#toast.red    { border-color: var(--red); color: var(--red); }
+
+/* ══════════════════════════════════════
+   모바일 반응형 (≤ 700px)
+══════════════════════════════════════ */
+@media (max-width: 700px) {
+  :root { --belt-h: 95px; }
+
+  #main-wrap {
     flex-direction: column;
-    height: 100vh;
-    overflow: hidden;
+    height: auto;
+    overflow: visible;
   }
-  header {
-    background-color: var(--panel-bg);
-    border-bottom: 1px solid var(--panel-border);
-    padding: 15px 24px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-  }
-  header h1 { font-size: 1.3rem; font-weight: 800; color: var(--accent-blue); letter-spacing: 1px; display: flex; align-items: center; gap: 10px; }
-  
-  .user-zone { display: flex; align-items: center; gap: 14px; }
-  .auth-btn {
-    background: #1e293b; color: #fff; border: 1px solid var(--panel-border); padding: 8px 16px;
-    border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.2s;
-  }
-  .auth-btn:hover { border-color: var(--accent-blue); background: #0f172a; }
-  .auth-btn.logout { background: #991b1b; border-color: #7f1d1d; }
-  .auth-btn.logout:hover { background: #7f1d1d; }
-  
-  .main-container { flex: 1; display: flex; overflow: hidden; }
-  .game-panel { flex: 1; display: flex; flex-direction: column; border-right: 1px solid var(--panel-border); }
-  
-  .hud-bar {
-    background: #0b0d10; padding: 20px;
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;
-    border-bottom: 1px solid var(--panel-border);
-  }
-  .hud-item { background: var(--panel-bg); padding: 14px 18px; border-radius: 8px; border: 1px solid var(--panel-border); position: relative; overflow: hidden; }
-  .hud-item::before { content:''; position:absolute; top:0; left:0; width:4px; height:100%; background:var(--panel-border); }
-  .hud-item.money-item::before { background: var(--accent-green); }
-  .hud-item.stage-item::before { background: var(--accent-blue); }
-  .hud-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 6px; letter-spacing: 0.5px; }
-  .hud-val { font-size: 1.4rem; font-weight: 800; letter-spacing: -0.5px; }
-  .hud-val.money { color: var(--accent-green); text-shadow: 0 0 10px rgba(0,255,102,0.2); }
-  
-  .content-area { flex: 1; padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 24px; }
-  .control-card {
-    background: var(--panel-bg); border: 1px solid var(--panel-border);
-    border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-  }
-  .card-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 20px; color: #f8fafc; display: flex; justify-content: space-between; align-items: center; }
-  
-  .upgrade-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-  .upgrade-btn {
-    background: #1e222b; border: 1px solid #2e3545; color: #fff;
-    padding: 20px; border-radius: 10px; text-align: left; cursor: pointer;
-    transition: all 0.2s; display: flex; flex-direction: column; gap: 6px; position: relative;
-  }
-  .upgrade-btn:hover:not(:disabled) { border-color: var(--accent-blue); background: #242936; transform: translateY(-2px); }
-  .upgrade-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
-  .up-name { font-weight: 700; font-size: 1rem; color: #f1f5f9; }
-  .up-desc { font-size: 0.8rem; color: var(--text-muted); line-height: 1.3; }
-  .up-cost { font-size: 0.95rem; color: var(--accent-amber); font-weight: 700; margin-top: 6px; display: flex; align-items: center; gap: 4px; }
-  
-  .line-container { display: flex; flex-direction: column; gap: 12px; margin-top: 6px; }
-  .line-track { background: #0b0d10; height: 16px; border-radius: 8px; overflow: hidden; position: relative; border: 1px solid #1e222b; }
-  .line-bar { background: linear-gradient(90deg, #00f0ff, #00ff66); height: 100%; width: 0%; box-shadow: 0 0 12px rgba(0,240,255,0.4); }
-  
-  .ai-panel { width: 380px; background: #111318; display: flex; flex-direction: column; border-left: 1px solid var(--panel-border); }
-  .ai-header { padding: 20px; border-bottom: 1px solid var(--panel-border); font-weight: 700; font-size: 1.05rem; display: flex; align-items: center; gap: 10px; color: var(--accent-blue); background: var(--panel-bg); }
-  .chat-box { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; background: #0b0d10; }
-  .msg { max-width: 85%; padding: 12px 16px; border-radius: 12px; font-size: 0.9rem; line-height: 1.45; word-break: break-all; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-  .msg.user { background: #2563eb; color: #fff; align-self: flex-end; border-bottom-right-radius: 2px; }
-  .msg.ai { background: var(--panel-bg); border: 1px solid var(--panel-border); color: var(--text-main); align-self: flex-start; border-bottom-left-radius: 2px; }
-  .msg.system { background: #1e293b; color: #94a3b8; align-self: center; font-size: 0.8rem; border-radius: 6px; text-align: center; max-width: 100%; border: 1px solid #334155; }
-  
-  .input-area { padding: 16px; border-top: 1px solid var(--panel-border); display: flex; gap: 10px; background: var(--panel-bg); }
-  .chat-input { flex: 1; background: #0b0d10; border: 1px solid var(--panel-border); border-radius: 6px; padding: 12px 16px; color: #fff; font-size: 0.9rem; transition: border-0.2s; }
-  .chat-input:focus { outline: none; border-color: var(--accent-blue); }
-  .send-btn { background: #2563eb; color: #fff; border: none; padding: 0 20px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: background 0.2s; }
-  .send-btn:hover:not(:disabled) { background: #1d4ed8; }
-  .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  
-  .modal-overlay {
-    position: fixed; top:0; left:0; width:100%; height:100%;
-    background: rgba(5,5,8,0.85); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 999;
-  }
-  .modal-box {
-    background: var(--panel-bg); border: 1px solid var(--panel-border);
-    padding: 32px; border-radius: 14px; width: 360px; display: flex; flex-direction: column; gap: 18px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5);
-  }
-  .modal-box h2 { font-size: 1.25rem; font-weight: 800; text-align: center; color: var(--accent-blue); letter-spacing: 0.5px; }
-  .modal-input { background: #0b0d10; border: 1px solid var(--panel-border); padding: 12px; color:#fff; border-radius:6px; font-size: 0.9rem; }
-  .modal-input:focus { outline:none; border-color:var(--accent-blue); }
-  .modal-btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
-  .modal-btn-group .auth-btn { padding: 12px; font-size: 0.95rem; }
-  .hidden { display: none !important; }
+  #game-panel  { overflow-y: visible; }
+  #ai-panel    { width: 100%; min-width: 0; border-left: none; border-top: 1px solid var(--border-dim); }
+  #shop-grid   { grid-template-columns: 1fr 1fr; }
+  .hud-chip    { padding: 5px 9px; }
+  .hud-val     { font-size: .85rem; }
+  body         { overflow-y: auto; }
+  #main-wrap   { min-height: calc(100vh - var(--belt-h) - 57px); }
+  #chat-box    { height: 260px; }
+}
+@media (max-width: 400px) {
+  #shop-grid { grid-template-columns: 1fr; }
+  .hud-chip  { padding: 4px 8px; }
+}
+
+/* 로딩 스피너 */
+.typing { display: flex; gap: 5px; align-items: center; padding: 4px 2px; }
+.typing span {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--teal); opacity: .4;
+  animation: typing-dot .9s infinite ease-in-out;
+}
+.typing span:nth-child(2) { animation-delay: .15s; }
+.typing span:nth-child(3) { animation-delay: .3s; }
+@keyframes typing-dot { 0%,60%,100%{opacity:.4;transform:none} 30%{opacity:1;transform:translateY(-4px)} }
 </style>
 </head>
 <body>
 
-  <div id="login-modal" class="modal-overlay">
-    <div class="modal-box">
-      <h2 id="modal-title">스마트 공장 제어인증</h2>
-      <input type="email" id="login-email" class="modal-input" placeholder="관리자 이메일 계정"/>
-      <input type="password" id="login-pass" class="modal-input" placeholder="액세스 비밀번호"/>
-      <div class="modal-btn-group">
-        <button id="btn-email-login" class="auth-btn" style="background:#2563eb; border-color:#3b82f6;">시스템 로그인</button>
-        <button id="btn-register" class="auth-btn">신규 관리자 등록</button>
+<!-- ══════════ 로그인 오버레이 ══════════ -->
+<div id="overlay">
+  <div class="scan-line"></div>
+  <div class="logo-wrap">
+    <h1>⚙ SMART FACTORY<br>TYCOON</h1>
+    <p class="logo-sub">Cybernetic Edition v3.0</p>
+  </div>
+
+  <div id="auth-box">
+    <div class="tab-row">
+      <button class="tab-btn on" id="tab-login"    onclick="switchTab('login')">로그인</button>
+      <button class="tab-btn"   id="tab-register"  onclick="switchTab('register')">회원가입</button>
+    </div>
+
+    <!-- 로그인 -->
+    <div class="tab-pane on" id="pane-login">
+      <div>
+        <div class="field-label">이메일</div>
+        <input class="field" id="f-email" type="email" placeholder="example@email.com" autocomplete="email"/>
       </div>
+      <div>
+        <div class="field-label">비밀번호</div>
+        <input class="field" id="f-pass" type="password" placeholder="비밀번호" autocomplete="current-password"/>
+      </div>
+      <div class="err-msg" id="err-login"></div>
+      <div class="btn-row">
+        <button class="btn-primary" id="btn-login">로그인</button>
+      </div>
+      <div class="divider"><span>또는</span></div>
+      <button class="btn-google" id="btn-google1">
+        <svg width="17" height="17" viewBox="0 0 48 48"><path fill="#4285F4" d="M47.5 24.6c0-1.6-.1-3.1-.4-4.6H24v8.7h13.2c-.6 3-2.3 5.5-4.9 7.2v6h7.9c4.6-4.3 7.3-10.6 7.3-17.3z"/><path fill="#34A853" d="M24 48c6.6 0 12.2-2.2 16.3-5.9l-7.9-6c-2.2 1.5-5 2.3-8.4 2.3-6.5 0-12-4.4-13.9-10.3H2v6.2C6 42.5 14.4 48 24 48z"/><path fill="#FBBC05" d="M10.1 28.1c-.5-1.5-.8-3-.8-4.6s.3-3.2.8-4.6v-6.2H2A23.9 23.9 0 0 0 0 24c0 3.9.9 7.5 2.5 10.7l8-6.2-.4-.4z"/><path fill="#EA4335" d="M24 9.5c3.6 0 6.8 1.3 9.4 3.7l7-7C36.2 2.2 30.6 0 24 0 14.4 0 6 5.5 2.5 13.3l8 6.2C12 13.9 17.5 9.5 24 9.5z"/></svg>
+        Google로 로그인
+      </button>
+      <button class="btn-guest" id="btn-guest">게스트로 시작 (저장 불가)</button>
+    </div>
+
+    <!-- 회원가입 -->
+    <div class="tab-pane" id="pane-register">
+      <div>
+        <div class="field-label">이메일</div>
+        <input class="field" id="r-email" type="email" placeholder="example@email.com" autocomplete="email"/>
+      </div>
+      <div>
+        <div class="field-label">비밀번호 (6자 이상)</div>
+        <input class="field" id="r-pass" type="password" placeholder="비밀번호" autocomplete="new-password"/>
+      </div>
+      <div>
+        <div class="field-label">비밀번호 확인</div>
+        <input class="field" id="r-pass2" type="password" placeholder="비밀번호 재입력" autocomplete="new-password"/>
+      </div>
+      <div class="err-msg" id="err-reg"></div>
+      <div class="btn-row">
+        <button class="btn-outline" id="btn-reg">가입하기</button>
+      </div>
+      <div class="divider"><span>또는</span></div>
+      <button class="btn-google" id="btn-google2">
+        <svg width="17" height="17" viewBox="0 0 48 48"><path fill="#4285F4" d="M47.5 24.6c0-1.6-.1-3.1-.4-4.6H24v8.7h13.2c-.6 3-2.3 5.5-4.9 7.2v6h7.9c4.6-4.3 7.3-10.6 7.3-17.3z"/><path fill="#34A853" d="M24 48c6.6 0 12.2-2.2 16.3-5.9l-7.9-6c-2.2 1.5-5 2.3-8.4 2.3-6.5 0-12-4.4-13.9-10.3H2v6.2C6 42.5 14.4 48 24 48z"/><path fill="#FBBC05" d="M10.1 28.1c-.5-1.5-.8-3-.8-4.6s.3-3.2.8-4.6v-6.2H2A23.9 23.9 0 0 0 0 24c0 3.9.9 7.5 2.5 10.7l8-6.2-.4-.4z"/><path fill="#EA4335" d="M24 9.5c3.6 0 6.8 1.3 9.4 3.7l7-7C36.2 2.2 30.6 0 24 0 14.4 0 6 5.5 2.5 13.3l8 6.2C12 13.9 17.5 9.5 24 9.5z"/></svg>
+        Google로 가입
+      </button>
+    </div>
+  </div>
+  <div class="scan-line"></div>
+</div>
+
+<!-- ══════════ HUD ══════════ -->
+<div id="hud">
+  <div class="hud-chip">
+    <span class="hud-label">스테이지</span>
+    <span class="hud-val stage" id="h-stage">01</span>
+  </div>
+  <div class="hud-chip">
+    <span class="hud-label">보유 자금</span>
+    <span class="hud-val money" id="h-money">₩ 0</span>
+  </div>
+  <div class="hud-chip">
+    <span class="hud-label">초당 수익</span>
+    <span class="hud-val cps" id="h-cps">+0/s</span>
+  </div>
+  <div class="hud-spacer"></div>
+  <div class="hud-right">
+    <div class="tts-toggle on" id="tts-btn" onclick="toggleTTS()">
+      <div class="tts-dot"></div>
+      <span>TTS</span>
+    </div>
+    <button class="hud-btn save"   id="btn-save">💾 저장</button>
+    <button class="hud-btn logout" id="btn-logout">나가기</button>
+    <div id="user-label"><span id="uid-show">게스트</span></div>
+  </div>
+</div>
+
+<!-- ══════════ 공장 컨베이어 ══════════ -->
+<div id="factory">
+  <div id="scan-text">
+    SYSTEM ONLINE ▸ LINE A1 ACTIVE<br>
+    SENSOR OK ▸ THROUGHPUT: <span id="throughput">0.0</span> units/min
+  </div>
+  <div class="belt-track"></div>
+  <div id="robot-arm">
+    <div id="arm-inner">
+      <div id="arm-body"><div id="arm-claw"></div></div>
+    </div>
+    <div id="arm-locked">
+      <div class="lock-icon">🔒</div>
+      <div class="lock-txt">STAGE 3</div>
+    </div>
+    <div id="arm-base"></div>
+  </div>
+</div>
+
+<!-- ══════════ 메인 레이아웃 ══════════ -->
+<div id="main-wrap">
+
+  <!-- 좌측: 게임 패널 -->
+  <div id="game-panel">
+
+    <!-- 스테이지 카드 -->
+    <div class="stage-card">
+      <div class="stage-info">
+        <div class="stage-name" id="s-name">▸ 1단계 — 초기 가동</div>
+        <div class="stage-desc" id="s-desc">초기 가동 단계. 기본 박스를 생산합니다.</div>
+      </div>
+      <div class="stage-bar-wrap">
+        <div class="bar-bg"><div class="bar-fill" id="s-bar" style="width:0%"></div></div>
+        <div class="bar-label" id="s-label">0 / 500 ₩</div>
+      </div>
+      <button class="btn-stage" id="btn-next-stage" disabled>다음 단계 ▸</button>
+    </div>
+
+    <!-- 업그레이드 상점 -->
+    <div class="section-title">
+      <span>▸ 업그레이드 상점</span>
+      <span style="color:var(--teal);font-size:.75rem;" id="shop-hint"></span>
+    </div>
+    <div id="shop-grid">
+
+      <div class="shop-card" id="card-motor">
+        <span class="card-icon">⚡</span>
+        <div class="card-name">터보 모터</div>
+        <div class="card-desc">컨베이어 속도 강화. 박스 생성 주기가 단축됩니다.</div>
+        <div class="card-level" id="motor-lv">Lv 0 / 10</div>
+        <div class="card-cost"  id="motor-cost">₩ 150</div>
+        <button class="card-buy" id="motor-buy">업그레이드</button>
+      </div>
+
+      <div class="shop-card" id="card-line">
+        <span class="card-icon">📦</span>
+        <div class="card-name">라인 업그레이드</div>
+        <div class="card-desc">생산 품질 향상. 더 고가의 제품을 생산합니다.</div>
+        <div class="card-level" id="line-lv">Lv 0 / 4</div>
+        <div class="card-cost"  id="line-cost">₩ 500</div>
+        <button class="card-buy" id="line-buy">업그레이드</button>
+      </div>
+
+      <div class="shop-card locked" id="card-arm">
+        <span class="card-badge" id="arm-badge">3단계 해제</span>
+        <span class="card-icon">🦾</span>
+        <div class="card-name">로봇 팔 장착</div>
+        <div class="card-desc">자동화 로봇 팔. 박스 자동 수집 + 효율 40% 증가.</div>
+        <div class="card-level" id="arm-lv">잠금 상태</div>
+        <div class="card-cost"  id="arm-cost">₩ 3,000</div>
+        <button class="card-buy" id="arm-buy" disabled>잠금</button>
+      </div>
+
+      <div class="shop-card" id="card-ai">
+        <span class="card-icon">🧠</span>
+        <div class="card-name">AI 최적화 엔진</div>
+        <div class="card-desc">딥러닝 최적화. 전체 수익 +25% (최대 3회).</div>
+        <div class="card-level" id="ai-lv">Lv 0 / 3</div>
+        <div class="card-cost"  id="ai-cost">₩ 2,000</div>
+        <button class="card-buy" id="ai-buy">업그레이드</button>
+      </div>
+
     </div>
   </div>
 
-  <header>
-    <h1>⚙️ SMART FACTORY OS v2.4</h1>
-    <div class="user-zone">
-      <span id="user-label" style="font-size:0.85rem; color:var(--text-muted); font-weight:600;">인증 대기 중...</span>
-      <button id="btn-logout" class="auth-btn logout hidden">로그아웃</button>
-      <button id="btn-save" class="auth-btn hidden" style="background:#16a34a; border-color:#22c55e;">서버 데이터 저장</button>
+  <!-- 우측: AI 채팅 패널 -->
+  <div id="ai-panel">
+    <div class="ai-header">
+      <div class="ai-dot"></div>
+      <span class="ai-title">🤖 AI 공장 비서</span>
+      <span class="ai-model">GPT-4o-mini</span>
     </div>
-  </header>
+    <div id="chat-box">
+      <div class="msg msg-system">[ 시스템 초기화 완료 — AI 코어 온라인 ]</div>
+      <div class="msg msg-ai">안녕하세요. 스마트 공장 AI 제어 시스템입니다. 공장 운영 전략이나 업그레이드 추천을 질문하세요.</div>
+    </div>
+    <div class="quick-wrap">
+      <button class="quick-btn" onclick="quickQ('지금 뭘 업그레이드해야 해?')">💡 업그레이드 추천</button>
+      <button class="quick-btn" onclick="quickQ('수익을 빠르게 올리는 방법은?')">📈 수익 전략</button>
+      <button class="quick-btn" onclick="quickQ('다음 스테이지 달성 팁은?')">🏭 스테이지 팁</button>
+    </div>
+    <div id="input-row">
+      <input id="chat-input" type="text" placeholder="공장 전략을 질문하세요..." maxlength="200"/>
+      <button id="send-btn">전송</button>
+    </div>
+  </div>
 
-  <div class="main-container">
-    <div class="game-panel">
-      <div class="hud-bar">
-        <div class="hud-item money-item">
-          <div class="hud-label">Operating Capital</div>
-          <div id="hud-money" class="hud-val money">0 ₩</div>
-        </div>
-        <div class="hud-item stage-item">
-          <div class="hud-label">Factory Stage</div>
-          <div id="hud-stage" class="hud-val">1 단계</div>
-        </div>
-        <div class="hud-item">
-          <div class="hud-label">Motor Hardware</div>
-          <div id="hud-motor-lv" class="hud-val">Lv.1</div>
-        </div>
-        <div class="hud-item">
-          <div class="hud-label">Conveyor Line</div>
-          <div id="hud-line-lv" class="hud-val">Lv.1</div>
-        </div>
-      </div>
+</div>
 
-      <div class="content-area">
-        <div class="control-card">
-          <div class="card-title">
-            <span>자동 생산 프로세스 실시간 모니터링</span>
-            <span id="efficiency-spec" style="font-size:0.85rem; color:var(--accent-green); font-weight:600;">수익률 계산 중...</span>
-          </div>
-          <div class="line-container">
-            <div class="line-track"><div id="line-bar" class="line-bar"></div></div>
-          </div>
+<!-- 토스트 알림 -->
+<div id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════
+   탭 전환 (전역)
+══════════════════════════════════════ */
+function switchTab(t) {
+  ['login','register'].forEach(k => {
+    document.getElementById('tab-'+k).classList.toggle('on', k===t);
+    document.getElementById('pane-'+k).classList.toggle('on', k===t);
+  });
+  document.getElementById('err-login').textContent = '';
+  document.getElementById('err-reg').textContent = '';
+}
+
+/* ══════════════════════════════════════
+   TTS 설정
+══════════════════════════════════════ */
+let ttsOn = true;
+function toggleTTS() {
+  ttsOn = !ttsOn;
+  const el = document.getElementById('tts-btn');
+  el.classList.toggle('on', ttsOn);
+}
+function speak(txt) {
+  if (!ttsOn || !window.speechSynthesis) return;
+  const u = new SpeechSynthesisUtterance(txt);
+  u.lang = 'ko-KR'; u.pitch = 0.5; u.rate = 0.88; u.volume = 0.85;
+  const v = window.speechSynthesis.getVoices().find(x => x.lang.startsWith('ko'));
+  if (v) u.voice = v;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(u);
+}
+window.speechSynthesis?.getVoices();
+
+/* ══════════════════════════════════════
+   Firebase 대기
+══════════════════════════════════════ */
+function waitFB(cb) { if (window.__FB) cb(); else setTimeout(() => waitFB(cb), 80); }
+
+waitFB(function () {
+  const {
+    auth, db, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged,
+    createUserWithEmailAndPassword, signInWithEmailAndPassword,
+    doc, setDoc, getDoc
+  } = window.__FB;
+
+  /* ══════════════════════════════════════
+     게임 상태
+  ══════════════════════════════════════ */
+  const G = {
+    money: 0, stage: 1, totalEarned: 0,
+    motorLv: 0, lineLv: 0, armOwned: false, aiLv: 0,
+    armActive: false, user: null, guest: false,
+  };
+
+  /* ══════════════════════════════════════
+     상수
+  ══════════════════════════════════════ */
+  const STAGES = [
+    { id:1, name:'초기 가동',   desc:'초기 가동. 기본 박스를 생산합니다.',         goal: 500    },
+    { id:2, name:'라인 확장',   desc:'라인 확장. 전자 기기 생산이 가능합니다.',    goal: 3000   },
+    { id:3, name:'자동화',      desc:'자동화. 로봇 팔 장착이 해제됩니다.',         goal: 15000  },
+    { id:4, name:'AI 최적화',   desc:'AI 최적화. 딥러닝 제어 시스템 도입.',        goal: 80000  },
+    { id:5, name:'퀀텀 공장',   desc:'최종 단계. 퀀텀 코어. 완전 자동화.',        goal: Infinity },
+  ];
+  const BOX_TYPES = [
+    { type:'normal',   icon:'📦', name:'일반 상자',     value: 8   },
+    { type:'electric', icon:'📱', name:'전자 기기',     value: 30  },
+    { type:'premium',  icon:'💎', name:'프리미엄 코어', value: 80  },
+    { type:'quantum',  icon:'⚛️', name:'퀀텀 코어',     value: 200 },
+  ];
+  const BASE_INTERVAL = 3400;
+  const ARM_BONUS     = 1.40;
+  const SHOP = {
+    motor: { costs: [150,300,550,900,1400,2200,3500,5500,9000,15000], max: 10 },
+    line:  { costs: [500,2500,12000,50000],                            max: 4  },
+    arm:   { cost: 3000 },
+    ai:    { costs: [2000,8000,30000],                                 max: 3  },
+  };
+
+  /* ══════════════════════════════════════
+     유틸
+  ══════════════════════════════════════ */
+  function fmt(n) {
+    if (n >= 1e9) return '₩' + (n/1e9).toFixed(2) + 'B';
+    if (n >= 1e6) return '₩' + (n/1e6).toFixed(2) + 'M';
+    if (n >= 1e3) return '₩' + (n/1e3).toFixed(1) + 'K';
+    return '₩' + Math.floor(n).toLocaleString();
+  }
+
+  let toastTimer;
+  function toast(msg, color='') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'show' + (color ? ' '+color : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.className = '', 2800);
+  }
+
+  function floatText(x, y, txt) {
+    const el = document.createElement('div');
+    el.className = 'float-txt';
+    el.textContent = txt;
+    el.style.left = x + 'px';
+    el.style.top  = y + 'px';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1200);
+  }
+
+  function calcCPS() {
+    const box = BOX_TYPES[Math.min(G.lineLv, BOX_TYPES.length-1)];
+    const interval = Math.max(600, BASE_INTERVAL - G.motorLv * 280);
+    const aiMult   = 1 + G.aiLv * 0.25;
+    const armMult  = G.armActive ? ARM_BONUS : 1;
+    return box.value * (1000 / interval) * aiMult * armMult;
+  }
+
+  /* ══════════════════════════════════════
+     HUD / 상점 갱신
+  ══════════════════════════════════════ */
+  function updateHUD() {
+    document.getElementById('h-money').textContent = fmt(G.money);
+    document.getElementById('h-stage').textContent = String(G.stage).padStart(2,'0');
+    const cps = calcCPS();
+    document.getElementById('h-cps').textContent = '+' + fmt(cps).replace('₩','') + '/s';
+    document.getElementById('throughput').textContent = (cps * 60 / 60).toFixed(1);
+
+    const st = STAGES[G.stage-1];
+    document.getElementById('s-name').textContent = `▸ ${G.stage}단계 — ${st.name}`;
+    document.getElementById('s-desc').textContent = st.desc;
+
+    if (st.goal === Infinity) {
+      document.getElementById('s-bar').style.width = '100%';
+      document.getElementById('s-label').textContent = '최고 단계 도달';
+      document.getElementById('btn-next-stage').disabled = true;
+      document.getElementById('btn-next-stage').textContent = '최고 단계 ✓';
+    } else {
+      const pct = Math.min(100, (G.totalEarned / st.goal) * 100);
+      document.getElementById('s-bar').style.width = pct + '%';
+      document.getElementById('s-label').textContent =
+        fmt(G.totalEarned).replace('₩','') + ' / ' + fmt(st.goal).replace('₩','');
+      document.getElementById('btn-next-stage').disabled = G.totalEarned < st.goal;
+    }
+
+    updateShop();
+  }
+
+  function updateShop() {
+    // 모터
+    const ml = G.motorLv;
+    document.getElementById('motor-lv').textContent = `Lv ${ml} / 10`;
+    if (ml >= 10) {
+      document.getElementById('motor-cost').textContent = '최고 레벨';
+      const b = document.getElementById('motor-buy');
+      b.textContent = '최고 레벨'; b.classList.add('maxed'); b.disabled = true;
+    } else {
+      const c = SHOP.motor.costs[ml];
+      document.getElementById('motor-cost').textContent = fmt(c);
+      const b = document.getElementById('motor-buy');
+      b.disabled = G.money < c; b.classList.remove('maxed'); b.textContent = '업그레이드';
+    }
+    // 라인
+    const ll = G.lineLv;
+    document.getElementById('line-lv').textContent = `Lv ${ll} / 4`;
+    if (ll >= 4) {
+      document.getElementById('line-cost').textContent = '최고 레벨';
+      const b = document.getElementById('line-buy');
+      b.textContent = '최고 레벨'; b.classList.add('maxed'); b.disabled = true;
+    } else {
+      const c = SHOP.line.costs[ll];
+      document.getElementById('line-cost').textContent = fmt(c);
+      const b = document.getElementById('line-buy');
+      b.disabled = G.money < c; b.classList.remove('maxed'); b.textContent = '업그레이드';
+    }
+    // 팔
+    if (G.stage >= 3) {
+      document.getElementById('card-arm').classList.remove('locked');
+      document.getElementById('arm-badge').textContent = G.armOwned ? '장착됨' : '구매 가능';
+      if (G.armOwned) {
+        document.getElementById('arm-lv').textContent = '장착 완료 ✓';
+        const b = document.getElementById('arm-buy');
+        b.textContent = '작동 중'; b.classList.add('maxed'); b.disabled = true;
+      } else {
+        document.getElementById('arm-lv').textContent = '미장착';
+        document.getElementById('arm-cost').textContent = fmt(SHOP.arm.cost);
+        const b = document.getElementById('arm-buy');
+        b.disabled = G.money < SHOP.arm.cost; b.classList.remove('maxed'); b.textContent = '구매';
+      }
+    } else {
+      document.getElementById('arm-buy').disabled = true;
+    }
+    // AI
+    const al = G.aiLv;
+    document.getElementById('ai-lv').textContent = `Lv ${al} / 3`;
+    if (al >= 3) {
+      document.getElementById('ai-cost').textContent = '최고 레벨';
+      const b = document.getElementById('ai-buy');
+      b.textContent = '최고 레벨'; b.classList.add('maxed'); b.disabled = true;
+    } else {
+      const c = SHOP.ai.costs[al];
+      document.getElementById('ai-cost').textContent = fmt(c);
+      const b = document.getElementById('ai-buy');
+      b.disabled = G.money < c; b.classList.remove('maxed'); b.textContent = '업그레이드';
+    }
+  }
+
+  /* ══════════════════════════════════════
+     박스 시스템
+  ══════════════════════════════════════ */
+  let boxTimer = null;
+  const activeBoxes = [];
+
+  function boxInterval() { return Math.max(600, BASE_INTERVAL - G.motorLv * 280); }
+
+  function spawnBox() {
+    const factory = document.getElementById('factory');
+    const btype   = BOX_TYPES[Math.min(G.lineLv, BOX_TYPES.length-1)];
+    const el      = document.createElement('div');
+    el.className  = `box-item box-${btype.type}`;
+    el.textContent = btype.icon;
+    el.style.left  = '-50px';
+
+    const onClick = (e) => {
+      e.stopPropagation();
+      const r     = el.getBoundingClientRect();
+      const aiM   = 1 + G.aiLv * 0.25;
+      const earn  = Math.floor(btype.value * 1.2 * aiM);
+      G.money += earn; G.totalEarned += earn;
+      floatText(r.left + r.width/2, r.top, '+' + fmt(earn));
+      removeBox(el); updateHUD();
+    };
+    el.addEventListener('click',      onClick);
+    el.addEventListener('touchstart', onClick, { passive: true });
+
+    factory.appendChild(el);
+    activeBoxes.push(el);
+
+    let posX = -50;
+    const armX = factory.offsetWidth - 88;
+    const speed = 1.2 + G.motorLv * 0.08;
+
+    function move() {
+      posX += speed;
+      el.style.left = posX + 'px';
+      if (G.armActive && posX >= armX - 10) {
+        const aiM  = 1 + G.aiLv * 0.25;
+        const earn = Math.floor(btype.value * ARM_BONUS * aiM);
+        G.money += earn; G.totalEarned += earn;
+        swingArm(); floatText(armX, 40, '+' + fmt(earn));
+        removeBox(el); updateHUD(); return;
+      }
+      if (posX > factory.offsetWidth) {
+        const aiM  = 1 + G.aiLv * 0.25;
+        const earn = Math.floor(btype.value * aiM);
+        G.money += earn; G.totalEarned += earn;
+        removeBox(el); updateHUD(); return;
+      }
+      if (el.parentNode) requestAnimationFrame(move);
+    }
+    requestAnimationFrame(move);
+  }
+
+  function removeBox(el) {
+    el.style.cssText += 'transform:scale(0);transition:transform .15s;';
+    setTimeout(() => el.parentNode?.removeChild(el), 160);
+    const i = activeBoxes.indexOf(el);
+    if (i >= 0) activeBoxes.splice(i, 1);
+  }
+
+  function restartBoxes() {
+    clearInterval(boxTimer);
+    boxTimer = setInterval(spawnBox, boxInterval());
+  }
+
+  /* ══════════════════════════════════════
+     로봇 팔
+  ══════════════════════════════════════ */
+  let armSwinging = false;
+  function activateArm() {
+    G.armActive = true;
+    document.getElementById('arm-locked').style.display = 'none';
+    document.getElementById('arm-inner').style.display  = 'flex';
+    const body = document.getElementById('arm-body');
+    body.style.background  = 'linear-gradient(180deg,var(--teal),#005a40)';
+    body.style.boxShadow   = '0 0 12px var(--teal)';
+    body.style.borderColor = 'var(--teal)';
+  }
+  function swingArm() {
+    if (armSwinging) return; armSwinging = true;
+    const body = document.getElementById('arm-body');
+    body.style.transition = 'transform .15s ease-in';
+    body.style.transform  = 'rotate(40deg)';
+    setTimeout(() => {
+      body.style.transition = 'transform .25s ease-out';
+      body.style.transform  = 'rotate(-15deg)';
+      setTimeout(() => { body.style.transform = 'rotate(0deg)'; armSwinging = false; }, 250);
+    }, 150);
+  }
+
+  /* ══════════════════════════════════════
+     구매 이벤트
+  ══════════════════════════════════════ */
+  document.getElementById('motor-buy').addEventListener('click', () => {
+    if (G.motorLv >= 10) return;
+    const c = SHOP.motor.costs[G.motorLv];
+    if (G.money < c) { toast('⚠ 자금이 부족합니다','red'); return; }
+    G.money -= c; G.motorLv++; restartBoxes();
+    toast(`⚡ 터보 모터 Lv${G.motorLv} — 속도 강화!`, 'green');
+    speak(`터보 모터 레벨 ${G.motorLv} 업그레이드 완료`);
+    updateHUD();
+  });
+
+  document.getElementById('line-buy').addEventListener('click', () => {
+    if (G.lineLv >= 4) return;
+    const c = SHOP.line.costs[G.lineLv];
+    if (G.money < c) { toast('⚠ 자금이 부족합니다','red'); return; }
+    G.money -= c; G.lineLv++;
+    const nb = BOX_TYPES[Math.min(G.lineLv, BOX_TYPES.length-1)];
+    toast(`📦 라인 Lv${G.lineLv} — ${nb.name} 생산 시작!`, 'green');
+    speak(`생산 라인 레벨 ${G.lineLv} 업그레이드. ${nb.name} 생산을 시작합니다.`);
+    updateHUD();
+  });
+
+  document.getElementById('arm-buy').addEventListener('click', () => {
+    if (G.armOwned || G.stage < 3) return;
+    const c = SHOP.arm.cost;
+    if (G.money < c) { toast('⚠ 자금이 부족합니다','red'); return; }
+    G.money -= c; G.armOwned = true; activateArm();
+    toast('🦾 로봇 팔 장착 완료 — 자동화 가동!', 'green');
+    speak('로봇 팔 장착 완료. 자동화 시스템이 가동됩니다.');
+    updateHUD();
+  });
+
+  document.getElementById('ai-buy').addEventListener('click', () => {
+    if (G.aiLv >= 3) return;
+    const c = SHOP.ai.costs[G.aiLv];
+    if (G.money < c) { toast('⚠ 자금이 부족합니다','red'); return; }
+    G.money -= c; G.aiLv++;
+    toast(`🧠 AI 최적화 Lv${G.aiLv} — 수익 +${G.aiLv*25}%!`, 'green');
+    speak(`AI 최적화 레벨 ${G.aiLv} 활성화`);
+    updateHUD();
+  });
+
+  /* ══════════════════════════════════════
+     다음 스테이지
+  ══════════════════════════════════════ */
+  document.getElementById('btn-next-stage').addEventListener('click', () => {
+    if (G.stage >= STAGES.length) return;
+    if (G.totalEarned < STAGES[G.stage-1].goal) return;
+    G.stage++;
+    if (G.stage >= 3 && !G.armOwned) document.getElementById('card-arm').classList.remove('locked');
+    const ns = STAGES[G.stage-1];
+    toast(`🏭 ${G.stage}단계 — ${ns.name} 달성!`, 'green');
+    speak(`${G.stage}단계 ${ns.name} 달성. 시스템을 확장합니다.`);
+    const factory = document.getElementById('factory');
+    factory.style.transition = 'box-shadow .3s';
+    factory.style.boxShadow  = '0 0 30px var(--teal)';
+    setTimeout(() => factory.style.boxShadow = '', 600);
+    updateHUD();
+  });
+
+  /* ══════════════════════════════════════
+     AI 채팅 — Gemini via Apps Script
+  ══════════════════════════════════════ */
+  // ⚠️ 본인 Apps Script 웹앱 URL로 교체하세요
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz_vumrxI7RUUorqke755Rm2lOnEXg8jhLt5kZmAmsQSWD8-O8lPejHoMzq1qNpUFd9/exec';
+
+  const chatBox  = document.getElementById('chat-box');
+  const chatInput= document.getElementById('chat-input');
+  const sendBtn  = document.getElementById('send-btn');
+
+  function addMsg(txt, role) {
+    const el = document.createElement('div');
+    el.className = `msg msg-${role}`;
+    el.textContent = txt;
+    chatBox.appendChild(el);
+    chatBox.scrollTop = chatBox.scrollHeight;
+    return el;
+  }
+
+  function addTyping() {
+    const el = document.createElement('div');
+    el.className = 'msg msg-ai';
+    el.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+    chatBox.appendChild(el);
+    chatBox.scrollTop = chatBox.scrollHeight;
+    return el;
+  }
+
+  async function sendChat(question) {
+    if (!question) return;
+    chatInput.value = '';
+    sendBtn.disabled = true;
+
+    addMsg(question, 'user');
+    const typing = addTyping();
+
+    const systemPrompt =
+      '당신은 스마트 공장의 AI 제어 시스템입니다. ' +
+      '모든 답변은 전문적이고 간결하며 실용적인 어조로 작성하세요. ' +
+      '이모지는 공장/기계 관련(⚙️🏭🤖📊💡)만 허용됩니다. ' +
+      `현재 공장 상태: ${G.stage}단계, 보유 자금 ${fmt(G.money)}, ` +
+      `모터 Lv${G.motorLv}, 라인 Lv${G.lineLv}, AI 최적화 Lv${G.aiLv}. ` +
+      '답변은 3~5문장, 반드시 한국어로.';
+
+    try {
+      const res  = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ prompt: systemPrompt + '\n\n질문: ' + question })
+      });
+      const data = await res.json();
+      typing.remove();
+
+      if (data.error) throw new Error(data.error);
+      const answer = data.answer || '[응답 없음]';
+      addMsg(answer, 'ai');
+      speak('AI 분석 완료. 답변이 출력되었습니다.');
+    } catch (e) {
+      typing.remove();
+      addMsg('[연결 오류] ' + e.message + ' — Apps Script 설정을 확인하세요.', 'ai');
+    } finally {
+      sendBtn.disabled = false;
+    }
+  }
+
+  sendBtn.addEventListener('click', () => sendChat(chatInput.value.trim()));
+  chatInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(chatInput.value.trim()); });
+
+  // 전역 퀵 질문 함수
+  window.quickQ = (q) => {
+    chatInput.value = q;
+    sendChat(q);
+  };
+
+  /* ══════════════════════════════════════
+     인증
+  ══════════════════════════════════════ */
+  // 이메일 로그인
+  document.getElementById('btn-login').addEventListener('click', async () => {
+    const email = document.getElementById('f-email').value.trim();
+    const pass  = document.getElementById('f-pass').value;
+    const err   = document.getElementById('err-login');
+    err.textContent = '';
+    if (!email || !pass) { err.textContent = '이메일과 비밀번호를 입력하세요.'; return; }
+    try {
+      await signInWithEmailAndPassword(auth, email, pass);
+    } catch (e) {
+      const map = {
+        'auth/user-not-found':'등록되지 않은 이메일입니다.',
+        'auth/wrong-password':'비밀번호가 올바르지 않습니다.',
+        'auth/invalid-email':'이메일 형식이 올바르지 않습니다.',
+        'auth/invalid-credential':'이메일 또는 비밀번호를 확인하세요.',
+        'auth/too-many-requests':'요청이 너무 많습니다. 잠시 후 다시 시도하세요.',
+      };
+      err.textContent = map[e.code] || ('오류: ' + e.message);
+    }
+  });
+
+  // 회원가입
+  document.getElementById('btn-reg').addEventListener('click', async () => {
+    const email = document.getElementById('r-email').value.trim();
+    const pass  = document.getElementById('r-pass').value;
+    const pass2 = document.getElementById('r-pass2').value;
+    const err   = document.getElementById('err-reg');
+    err.textContent = '';
+    if (!email || !pass) { err.textContent = '이메일과 비밀번호를 입력하세요.'; return; }
+    if (pass.length < 6)  { err.textContent = '비밀번호는 6자 이상이어야 합니다.'; return; }
+    if (pass !== pass2)   { err.textContent = '비밀번호가 일치하지 않습니다.'; return; }
+    try {
+      await createUserWithEmailAndPassword(auth, email, pass);
+      toast('✅ 회원가입 완료! 환영합니다.', 'green');
+    } catch (e) {
+      const map = {
+        'auth/email-already-in-use':'이미 사용 중인 이메일입니다.',
+        'auth/invalid-email':'이메일 형식이 올바르지 않습니다.',
+        'auth/weak-password':'비밀번호가 너무 약합니다.',
+      };
+      err.textContent = map[e.code] || ('오류: ' + e.message);
+    }
+  });
+
+  // 구글 로그인
+  function googleLogin() {
+    signInWithPopup(auth, new GoogleAuthProvider()).catch(e => {
+      toast('⚠ 구글 로그인 실패: ' + e.message, 'red');
+    });
+  }
+  document.getElementById('btn-google1').addEventListener('click', googleLogin);
+  document.getElementById('btn-google2').addEventListener('click', googleLogin);
+
+  // 게스트
+  document.getElementById('btn-guest').addEventListener('click', () => {
+    G.guest = true;
+    document.getElementById('overlay').style.display = 'none';
+    document.getElementById('uid-show').textContent = '게스트';
+    startGame();
+  });
+
+  // 로그아웃
+  document.getElementById('btn-logout').addEventListener('click', () => {
+    if (G.guest) location.reload();
+    else signOut(auth).then(() => location.reload());
+  });
+
+  // 저장
+  document.getElementById('btn-save').addEventListener('click', async () => {
+    if (G.guest || !G.user) { toast('⚠ 로그인 후 저장이 가능합니다', 'red'); return; }
+    try {
+      await setDoc(doc(db, 'saves', G.user.uid), {
+        money: G.money, stage: G.stage, totalEarned: G.totalEarned,
+        motorLv: G.motorLv, lineLv: G.lineLv,
+        armOwned: G.armOwned, aiLv: G.aiLv,
+        savedAt: new Date().toISOString()
+      });
+      toast('💾 서버 저장 완료!', 'green');
+      speak('서버 저장이 완료되었습니다.');
+    } catch (e) { toast('⚠ 저장 실패: ' + e.message, 'red'); }
+  });
+
+  // 인증 상태 감시
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      G.user = user; G.guest = false;
+      document.getElementById('uid-show').innerHTML = `<span>${user.displayName || user.email}</span>`;
+      document.getElementById('overlay').style.display = 'none';
+      try {
+        const snap = await getDoc(doc(db, 'saves', user.uid));
+        if (snap.exists()) {
+          const d = snap.data();
+          G.money       = d.money       || 0;
+          G.stage       = d.stage       || 1;
+          G.totalEarned = d.totalEarned || 0;
+          G.motorLv     = d.motorLv     || 0;
+          G.lineLv      = d.lineLv      || 0;
+          G.armOwned    = d.armOwned    || false;
+          G.aiLv        = d.aiLv        || 0;
+          toast('✅ 저장 데이터 불러오기 완료', 'green');
+          speak('저장된 데이터를 불러왔습니다. 공장 가동을 재개합니다.');
+        }
+      } catch (e) { toast('⚠ 저장 불러오기 실패', 'red'); }
+      startGame();
+    }
+  });
+
+  /* ══════════════════════════════════════
+     게임 시작
+  ══════════════════════════════════════ */
+  function startGame() {
+    if (G.armOwned) activateArm();
+    else {
+      document.getElementById('arm-inner').style.display  = 'none';
+      document.getElementById('arm-locked').style.display = 'flex';
+    }
+    restartBoxes();
+    updateHUD();
+    speak('방치형 스마트 공장 타이쿤에 오신 것을 환영합니다. 공장 가동을 시작합니다.');
+  }
+
+  /* ══════════════════════════════════════
+     엔터키 로그인 / 회원가입
+  ══════════════════════════════════════ */
+  ['f-email','f-pass'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('btn-login').click();
+    });
+  });
+  ['r-email','r-pass','r-pass2'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('btn-reg').click();
+    });
+  });
+
+  /* ══════════════════════════════════════
+     주기적 HUD 갱신
+  ══════════════════════════════════════ */
+  setInterval(() => { if (G.stage > 0) updateHUD(); }, 1000);
+
+}); // waitFB end
+</script>
+</body>
+</html>
