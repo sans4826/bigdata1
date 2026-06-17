@@ -12,8 +12,8 @@
     getAuth, GoogleAuthProvider, signInWithPopup, signOut,
     onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { getFirestore, doc, setDoc, getDoc }
-    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getDatabase, ref, set, get }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBH3MnIsDLamBCogW27DT-4schLxKnBMys",
@@ -21,18 +21,23 @@
     projectId: "bigdata00-db9de",
     storageBucket: "bigdata00-db9de.firebasestorage.app",
     messagingSenderId: "274979879514",
-    appId: "1:274979879514:web:b1cc5584cae51ba7677663"
+    appId: "1:274979879514:web:b1cc5584cae51ba7677663",
+    // ⚠️ Realtime Database를 쓰려면 databaseURL이 반드시 필요합니다.
+    // Firebase 콘솔 → Build → Realtime Database → 데이터베이스 만들기 후
+    // 화면 상단에 표시되는 URL을 그대로 복사해서 아래에 넣으세요.
+    // 예: "https://bigdata00-db9de-default-rtdb.asia-southeast1.firebasedatabase.app"
+    databaseURL: "https://bigdata00-db9de-default-rtdb.asia-southeast1.firebasedatabase.app"
   };
 
   const app  = initializeApp(firebaseConfig);
   const auth = getAuth(app);
-  const db   = getFirestore(app);
+  const db   = getDatabase(app);
 
   window.__FB = {
     auth, db,
     GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged,
     createUserWithEmailAndPassword, signInWithEmailAndPassword,
-    doc, setDoc, getDoc
+    ref, set, get
   };
 </script>
 
@@ -795,7 +800,7 @@ waitFB(function () {
   const {
     auth, db, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged,
     createUserWithEmailAndPassword, signInWithEmailAndPassword,
-    doc, setDoc, getDoc
+    ref, set, get
   } = window.__FB;
 
   /* ══════════════════════════════════════
@@ -1256,31 +1261,63 @@ waitFB(function () {
     else signOut(auth).then(() => location.reload());
   });
 
-  // 저장
-  document.getElementById('btn-save').addEventListener('click', async () => {
-    if (G.guest || !G.user) { toast('⚠ 로그인 후 저장이 가능합니다', 'red'); return; }
+  // 저장 — Realtime Database (수동 버튼 + 자동 저장 공용 함수)
+  let isSaving = false;
+  async function saveGame(silent = false) {
+    if (G.guest || !G.user) {
+      if (!silent) toast('⚠ 로그인 후 저장이 가능합니다', 'red');
+      return false;
+    }
+    if (isSaving) return false; // 중복 저장 방지
+    isSaving = true;
     try {
-      await setDoc(doc(db, 'saves', G.user.uid), {
+      await set(ref(db, 'saves/' + G.user.uid), {
         money: G.money, stage: G.stage, totalEarned: G.totalEarned,
         motorLv: G.motorLv, lineLv: G.lineLv,
         armOwned: G.armOwned, aiLv: G.aiLv,
         savedAt: new Date().toISOString()
       });
-      toast('💾 서버 저장 완료!', 'green');
-      speak('서버 저장이 완료되었습니다.');
-    } catch (e) { toast('⚠ 저장 실패: ' + e.message, 'red'); }
+      if (silent) {
+        toast('🔄 자동 저장 완료', 'green');
+      } else {
+        toast('💾 서버 저장 완료!', 'green');
+        speak('서버 저장이 완료되었습니다.');
+      }
+      return true;
+    } catch (e) {
+      if (!silent) toast('⚠ 저장 실패: ' + e.message, 'red');
+      return false;
+    } finally {
+      isSaving = false;
+    }
+  }
+
+  document.getElementById('btn-save').addEventListener('click', () => saveGame(false));
+
+  // 자동 저장 — 30초마다 백그라운드로 저장 (게스트는 제외)
+  const AUTO_SAVE_INTERVAL = 30000;
+  let autoSaveTimer = null;
+  function startAutoSave() {
+    clearInterval(autoSaveTimer);
+    if (G.guest || !G.user) return;
+    autoSaveTimer = setInterval(() => saveGame(true), AUTO_SAVE_INTERVAL);
+  }
+
+  // 탭을 닫거나 페이지를 떠날 때도 마지막으로 한 번 저장 시도
+  window.addEventListener('beforeunload', () => {
+    if (!G.guest && G.user) saveGame(true);
   });
 
-  // 인증 상태 감시
+  // 인증 상태 감시 — Realtime Database에서 불러오기
   onAuthStateChanged(auth, async (user) => {
     if (user) {
       G.user = user; G.guest = false;
       document.getElementById('uid-show').innerHTML = `<span>${user.displayName || user.email}</span>`;
       document.getElementById('overlay').style.display = 'none';
       try {
-        const snap = await getDoc(doc(db, 'saves', user.uid));
+        const snap = await get(ref(db, 'saves/' + user.uid));
         if (snap.exists()) {
-          const d = snap.data();
+          const d = snap.val();
           G.money       = d.money       || 0;
           G.stage       = d.stage       || 1;
           G.totalEarned = d.totalEarned || 0;
@@ -1307,6 +1344,7 @@ waitFB(function () {
     }
     restartBoxes();
     updateHUD();
+    startAutoSave();
     speak('방치형 스마트 공장 타이쿤에 오신 것을 환영합니다. 공장 가동을 시작합니다.');
   }
 
